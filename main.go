@@ -66,10 +66,7 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			"page": "signup",
 		}
 
-		err := templates.ExecuteTemplate(w, "signup.html", viewData)
-		if err != nil {
-			panic(err)
-		}
+		templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
 
@@ -77,18 +74,15 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
 		if err != nil {
-			panic(err) // TODO
+			renderSystemError(w, "error while registering user: %s", err)
+			return
 		}
 
 		viewData := map[string]any{
 			"page": "signup",
 		}
 
-		// TODO: Render banner
-		err = templates.ExecuteTemplate(w, "signup.html", viewData)
-		if err != nil {
-			panic(err)
-		}
+		templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
 
@@ -96,10 +90,12 @@ func newProfileViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if errors.Is(err, keycloak.ErrNotFound) {
-			panic("USER NOT FOUND TODO")
+			http.Error(w, "user not found (this should not be possible)", 400)
+			return
 		}
 		if err != nil {
-			panic(err) // TODO
+			renderSystemError(w, "error while fetching user: %s", err)
+			return
 		}
 
 		viewData := map[string]any{
@@ -107,10 +103,7 @@ func newProfileViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			"user": user,
 		}
 
-		err = templates.ExecuteTemplate(w, "profile.html", viewData)
-		if err != nil {
-			panic(err) // TODO
-		}
+		templates.ExecuteTemplate(w, "profile.html", viewData)
 	}
 }
 
@@ -119,7 +112,8 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		fobID, _ := strconv.Atoi(r.FormValue("fobid"))
 		err := kc.UpdateUserFobID(r.Context(), getUserID(r), fobID)
 		if err != nil {
-			panic(err) // TODO
+			renderSystemError(w, "error while updating user: %s", err)
+			return
 		}
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -133,7 +127,8 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 		err := kc.UpdateUserName(r.Context(), getUserID(r), first, last)
 		if err != nil {
-			panic(err) // TODO
+			renderSystemError(w, "error while updating user: %s", err)
+			return
 		}
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -143,8 +138,14 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 // getUserID allows the oauth2proxy header to be overridden for testing.
 func getUserID(r *http.Request) string {
 	user := r.Header.Get("X-Forwarded-User")
+	log.Printf("got request for user %s", user)
 	if user == "" {
 		return os.Getenv("TESTUSERID")
 	}
 	return user
+}
+
+func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
+	log.Printf(msg, args...)
+	http.Error(w, "system error", 500)
 }
