@@ -46,7 +46,7 @@ func main() {
 
 	// Signup view and registration POST handler
 	http.HandleFunc("/signup", newSignupViewHandler(kc))
-	http.HandleFunc("/register", newRegistrationFormHandler(kc))
+	http.HandleFunc("/signup/register", newRegistrationFormHandler(kc))
 
 	// Profile view and associated form POST handlers
 	http.HandleFunc("/profile", newProfileViewHandler(kc))
