@@ -44,10 +44,11 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 
 	user := &User{
-		First:        gocloak.PString(kcuser.FirstName),
-		Last:         gocloak.PString(kcuser.LastName),
-		Email:        gocloak.PString(kcuser.Email),
-		SignedWaiver: safeGetAttr(kcuser, "waiverState") == "Signed",
+		First:         gocloak.PString(kcuser.FirstName),
+		Last:          gocloak.PString(kcuser.LastName),
+		Email:         gocloak.PString(kcuser.Email),
+		SignedWaiver:  safeGetAttr(kcuser, "waiverState") == "Signed",
+		ActivePayment: safeGetAttr(kcuser, "stripeID") != "",
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 
@@ -129,7 +130,11 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID str
 	kcuser := kcusers[0]
 
 	attr := safeGetAttrs(kcuser)
-	attr["stripeID"] = []string{stripeID}
+	if active {
+		attr["stripeID"] = []string{stripeID}
+	} else {
+		attr["stripeID"] = []string{""}
+	}
 
 	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 	if err != nil {
