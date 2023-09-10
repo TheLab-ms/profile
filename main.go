@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
+	"github.com/stripe/stripe-go/v75/webhook"
 
 	"github.com/TheLab-ms/profile/conf"
 	"github.com/TheLab-ms/profile/keycloak"
@@ -62,6 +64,7 @@ func main() {
 
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
+	http.HandleFunc("/webhooks/stripe", newStripeWebhookHandler(env, kc))
 
 	// Embed (into the compiled binary) and serve any files from the assets directory
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
@@ -192,6 +195,46 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			w.WriteHeader(500)
 			return
 		}
+	}
+}
+
+func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		payload, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("error while reading Stripe webhook body: %s", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), env.StripeWebhookKey)
+		if err != nil {
+			log.Printf("error while constructing Stripe webhook event: %s", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		switch event.Type {
+		case "customer.subscription.deleted":
+		case "customer.subscription.updated":
+		case "customer.subscription.created":
+		default:
+			log.Printf("unhandled Stripe webhook event type: %s", event.Type)
+			return
+		}
+
+		sub := &stripe.Subscription{}
+		err = json.Unmarshal(event.Data.Raw, sub)
+		if err != nil {
+			log.Printf("got invalid Stripe webhook event: %s", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		log.Printf("got Stripe webhook event for %s", sub.ID)
+
+		// TODO
+		// active := sub.Status == stripe.SubscriptionStatusActive
+		// sub.Customer.Email
 	}
 }
 
