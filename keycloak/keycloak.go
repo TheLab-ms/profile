@@ -43,7 +43,7 @@ func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user
 			return user, nil
 		}
 
-		time.Sleep(time.Second) // backoff + jitter would be nice here
+		time.Sleep(time.Millisecond * 100) // backoff + jitter would be nice here
 	}
 	return user, nil // timeout
 }
