@@ -19,8 +19,8 @@ var (
 )
 
 type Keycloak struct {
-	client                     *gocloak.GoCloak
-	user, pass, realm, baseURL string
+	client *gocloak.GoCloak
+	env    *conf.Env
 
 	// use ensureToken to access these
 	tokenLock      sync.Mutex
@@ -29,7 +29,7 @@ type Keycloak struct {
 }
 
 func New(c *conf.Env) *Keycloak {
-	return &Keycloak{client: gocloak.NewClient(c.KeycloakURL), user: c.KeycloakUser, pass: c.KeycloakPassword, realm: c.KeycloakRealm, baseURL: c.KeycloakURL}
+	return &Keycloak{client: gocloak.NewClient(c.KeycloakURL), env: c}
 }
 
 func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
@@ -38,7 +38,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		return nil, fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.realm, userID)
+	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.realm, userID)
+	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
 	if err != nil {
 		return fmt.Errorf("getting current user: %w", err)
 	}
@@ -71,7 +71,7 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 	attr := *kcuser.Attributes
 	attr["keyfobID"] = []string{strconv.Itoa(fobID)}
 
-	return k.client.UpdateUser(ctx, token.AccessToken, k.realm, *kcuser)
+	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
 func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) error {
@@ -80,7 +80,7 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) erro
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.realm, gocloak.GetUsersParams{
+	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
 		Email: &email,
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) erro
 	attr := *kcuser.Attributes
 	attr["waiverState"] = []string{"Signed"}
 
-	return k.client.UpdateUser(ctx, token.AccessToken, k.realm, *kcuser)
+	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
 func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last string) error {
@@ -103,7 +103,7 @@ func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last strin
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.realm, userID)
+	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
 	if err != nil {
 		return fmt.Errorf("getting current user: %w", err)
 	}
@@ -111,7 +111,7 @@ func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last strin
 	kcuser.FirstName = &first
 	kcuser.LastName = &last
 
-	return k.client.UpdateUser(ctx, token.AccessToken, k.realm, *kcuser)
+	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
 func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
@@ -121,7 +121,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	}
 
 	yes := true
-	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.realm, gocloak.User{
+	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
 		Enabled:  &yes,
 		Email:    &email,
 		Username: &email,
@@ -134,9 +134,9 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	}
 
 	resp, err := k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
-		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": "https://profile.thelab.ms", "client_id": "TODO"}).
+		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL, "client_id": k.env.KeycloakClientID}).
 		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
-		Put(fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", k.baseURL, k.realm, userID))
+		Put(fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", k.env.KeycloakURL, k.env.KeycloakRealm, userID))
 	if err != nil {
 		return fmt.Errorf("sending message: %w", err)
 	}
@@ -156,7 +156,7 @@ func (k *Keycloak) ensureToken(ctx context.Context) (*gocloak.JWT, error) {
 		return k.token, nil
 	}
 
-	token, err := k.client.LoginAdmin(ctx, k.user, k.pass, k.realm)
+	token, err := k.client.LoginAdmin(ctx, k.env.KeycloakUser, k.env.KeycloakPassword, k.env.KeycloakRealm)
 	if err != nil {
 		return nil, err
 	}

@@ -5,4 +5,7 @@ type Env struct {
 	KeycloakUser     string `split_words:"true" required:"true"`
 	KeycloakPassword string `split_words:"true" required:"true"`
 	KeycloakRealm    string `default:"master" split_words:"true"`
+	KeycloakClientID string `split_words:"true" required:"true"`
+
+	SelfURL string `split_words:"true" required:"true"`
 }
