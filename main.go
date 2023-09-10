@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"strconv"
 	"text/template"
@@ -138,10 +137,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 // getUserID allows the oauth2proxy header to be overridden for testing.
 func getUserID(r *http.Request) string {
-	user := r.Header.Get("X-Forwarded-User")
-	req, _ := httputil.DumpRequest(r, false)
-	log.Printf("extracting user ID from request headers: %s", req)
-
+	user := r.Header.Get("X-Forwarded-Preferred-Username")
 	if user == "" {
 		return os.Getenv("TESTUSERID")
 	}
