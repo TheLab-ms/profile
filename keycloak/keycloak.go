@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile/conf"
 )
@@ -44,12 +45,14 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 
 	user := &User{
-		First:         gocloak.PString(kcuser.FirstName),
-		Last:          gocloak.PString(kcuser.LastName),
-		Email:         gocloak.PString(kcuser.Email),
-		SignedWaiver:  safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActivePayment: safeGetAttr(kcuser, "stripeID") != "",
+		First:                gocloak.PString(kcuser.FirstName),
+		Last:                 gocloak.PString(kcuser.LastName),
+		Email:                gocloak.PString(kcuser.Email),
+		SignedWaiver:         safeGetAttr(kcuser, "waiverState") == "Signed",
+		ActivePayment:        safeGetAttr(kcuser, "stripeID") != "",
+		StripeSubscriptionID: safeGetAttr(kcuser, "stripeSubscriptionID"),
 	}
+	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 
 	return user, nil
@@ -112,14 +115,14 @@ func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last strin
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
-func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID string, active bool) error {
+func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Customer, sub *stripe.Subscription) error {
 	token, err := k.ensureToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
 	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
-		Email: &email,
+		Email: &customer.Email,
 	})
 	if err != nil {
 		return fmt.Errorf("getting current user: %w", err)
@@ -130,10 +133,15 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID str
 	kcuser := kcusers[0]
 
 	attr := safeGetAttrs(kcuser)
+	active := sub.Status == stripe.SubscriptionStatusActive
 	if active {
-		attr["stripeID"] = []string{stripeID}
+		attr["stripeID"] = []string{customer.ID}
+		attr["stripeSubscriptionID"] = []string{sub.ID}
+		attr["stripeCancelationTime"] = []string{strconv.FormatInt(sub.CancelAt, 10)}
 	} else {
 		attr["stripeID"] = []string{""}
+		attr["stripeSubscriptionID"] = []string{""}
+		attr["stripeCancelationTime"] = []string{""}
 	}
 
 	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -220,6 +228,8 @@ type User struct {
 	First, Last, Email          string
 	FobID                       int
 	SignedWaiver, ActivePayment bool
+	StripeSubscriptionID        string
+	StripeCancelationTime       int64
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {

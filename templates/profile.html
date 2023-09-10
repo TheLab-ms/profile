@@ -18,11 +18,17 @@
                             Membership dues are processed by Stripe.
                         </p>
                         {{- if .user.ActivePayment }}
+                        {{- if .expiration }}
+                        <div class="alert alert-warning" role="alert">
+                            Your subscription has been canceled. Membership will expire at {{ .expiration }}.
+                        </div>
+                        {{- else }}
                         <div class="btn-group" role="group" aria-label="...">
                             <a href="/profile/stripe" role="button" class="btn btn-default">Update Payment
                                 Info</a>
                             <a href="/profile/cancel" role="button" class="btn btn-default">Cancel Membership</a>
                         </div>
+                        {{- end }}
                         {{- else }}
                         <div class="btn-group" role="group" aria-label="...">
                             {{- range .prices }}

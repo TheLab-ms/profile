@@ -9,11 +9,13 @@ import (
 	"os"
 	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
 	"github.com/stripe/stripe-go/v75/customer"
+	"github.com/stripe/stripe-go/v75/subscription"
 	"github.com/stripe/stripe-go/v75/webhook"
 
 	"github.com/TheLab-ms/profile/conf"
@@ -62,6 +64,7 @@ func main() {
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
 	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc))
+	http.HandleFunc("/profile/cancel", newCancelHandler(env, kc))
 
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
@@ -111,6 +114,9 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http
 			"page":   "profile",
 			"user":   user,
 			"prices": pc(),
+		}
+		if user.StripeCancelationTime > 0 {
+			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
 		}
 
 		templates.ExecuteTemplate(w, "profile.html", viewData)
@@ -184,6 +190,24 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 	}
 }
 
+func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := kc.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user from Keycloak: %s", err)
+			return
+		}
+
+		_, err = subscription.Update(user.StripeSubscriptionID, &stripe.SubscriptionParams{
+			CancelAtPeriodEnd: stripe.Bool(true),
+		})
+		if err != nil {
+			renderSystemError(w, "error while canceling Stripe subscription: %s", err)
+			return
+		}
+	}
+}
+
 func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body := struct {
@@ -248,8 +272,7 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		}
 		log.Printf("got Stripe subscription event for member %q, state=%s", customer.Email, sub.Status)
 
-		active := sub.Status == stripe.SubscriptionStatusActive
-		err = kc.UpdateUserStripeInfo(r.Context(), customer.Email, customer.ID, active)
+		err = kc.UpdateUserStripeInfo(r.Context(), customer, sub)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
 			w.WriteHeader(500)
