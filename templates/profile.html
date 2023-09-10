@@ -14,9 +14,6 @@
                         <h3 class="panel-title">Payment</h3>
                     </div>
                     <div class="panel-body">
-                        <p>
-                            Membership dues are processed by Stripe.
-                        </p>
                         {{- if .user.ActivePayment }}
                         {{- if .expiration }}
                         <div class="alert alert-info" role="alert">
@@ -48,8 +45,8 @@
                         <p>
                             Everyone needs to sign a waiver before physically entering TheLab.
                         </p>
-                        <a href="https://waiver.thelab.ms" role="button" target="_blank"
-                            class="btn btn-default">Redirect to Waiver</a>
+                        <a href="https://waiver.thelab.ms" role="button" target="_blank" class="btn btn-default">Sign
+                            Waiver</a>
                     </div>
                 </div>
 
@@ -62,10 +59,7 @@
                             Members get 24 hour access to TheLab using RFID keyfobs.
                         </p>
                         <p>
-                            If you don't already have one, check the calendar for dates when you can come by and pick
-                            one
-                            up.
-                            Once you have a fob, enter its ID below to associate it with your profile.
+                            Check the calendar for keyfob pickup events to physically pick up a fob.
                         </p>
                         <form class="form-inline" action="/profile/keyfob">
                             <div class="form-group">
