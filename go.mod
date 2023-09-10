@@ -6,6 +6,7 @@ require (
 	github.com/Nerzal/gocloak/v13 v13.8.0 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/google/uuid v1.3.1 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

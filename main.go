@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
@@ -108,7 +109,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := kc.GetUser(r.Context(), getUserID(r))
+		user, err := kc.GetUserAtETag(r.Context(), getUserID(r), r.URL.Query().Get("etag"))
 		if err != nil {
 			renderSystemError(w, "error while fetching user: %s", err)
 			return
@@ -163,10 +164,12 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 			return
 		}
 
+		etag := uuid.Must(uuid.NewRandom()).String()
 		checkoutParams := &stripe.CheckoutSessionParams{
 			CustomerEmail: &user.Email,
-			SuccessURL:    stripe.String(env.SelfURL + "/profile"),
+			SuccessURL:    stripe.String(env.SelfURL + "/profile?etag=" + etag),
 			CancelURL:     stripe.String(env.SelfURL + "/profile"),
+			Metadata:      map[string]string{"etag": etag},
 		}
 		checkoutParams.Context = r.Context()
 
@@ -202,8 +205,10 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		etag := uuid.Must(uuid.NewRandom()).String()
 		_, err = subscription.Update(user.StripeSubscriptionID, &stripe.SubscriptionParams{
 			CancelAtPeriodEnd: stripe.Bool(true),
+			Metadata:          map[string]string{"etag": etag},
 		})
 		if err != nil {
 			renderSystemError(w, "error while canceling Stripe subscription: %s", err)
@@ -211,7 +216,7 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 		}
 
 		time.Sleep(time.Second / 2) // hack to avoid webhook race condition
-		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		http.Redirect(w, r, "/profile?etag="+etag, http.StatusSeeOther)
 	}
 }
 

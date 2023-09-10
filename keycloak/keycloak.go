@@ -33,6 +33,21 @@ func New(c *conf.Env) *Keycloak {
 	return &Keycloak{client: gocloak.NewClient(c.KeycloakURL), env: c}
 }
 
+func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user *User, err error) {
+	for i := 0; i < 8; i++ {
+		user, err = k.GetUser(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if user.StripeETag == etag || etag == "" {
+			return user, nil
+		}
+
+		time.Sleep(time.Second) // backoff + jitter would be nice here
+	}
+	return user, nil // timeout
+}
+
 func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	token, err := k.ensureToken(ctx)
 	if err != nil {
@@ -52,8 +67,9 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		ActivePayment:        safeGetAttr(kcuser, "stripeID") != "",
 		StripeSubscriptionID: safeGetAttr(kcuser, "stripeSubscriptionID"),
 	}
-	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
+	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
+	user.StripeETag = safeGetAttr(kcuser, "stripeCancelationTime")
 
 	return user, nil
 }
@@ -144,6 +160,10 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 		attr["stripeCancelationTime"] = []string{""}
 	}
 
+	if sub.Metadata != nil {
+		attr["stripeETag"] = []string{sub.Metadata["etag"]}
+	}
+
 	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 	if err != nil {
 		return fmt.Errorf("updating user: %w", err)
@@ -228,8 +248,10 @@ type User struct {
 	First, Last, Email          string
 	FobID                       int
 	SignedWaiver, ActivePayment bool
-	StripeSubscriptionID        string
-	StripeCancelationTime       int64
+
+	StripeSubscriptionID  string
+	StripeCancelationTime int64
+	StripeETag            string
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
