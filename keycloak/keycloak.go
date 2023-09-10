@@ -44,16 +44,12 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 
 	user := &User{
-		First: safeDeref(kcuser.FirstName),
-		Last:  safeDeref(kcuser.LastName),
-		Email: safeDeref(kcuser.Email),
+		First:        gocloak.PString(kcuser.FirstName),
+		Last:         gocloak.PString(kcuser.LastName),
+		Email:        gocloak.PString(kcuser.Email),
+		SignedWaiver: safeGetAttr(kcuser, "waiverState") == "Signed",
 	}
-
-	if kcuser.Attributes != nil {
-		attr := *kcuser.Attributes
-		user.SignedWaiver = firstElOrZeroVal(attr["waiverState"]) == "Signed"
-		user.FobID, _ = strconv.Atoi(firstElOrZeroVal(attr["keyfobID"]))
-	}
+	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 
 	return user, nil
 }
@@ -69,7 +65,10 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 		return fmt.Errorf("getting current user: %w", err)
 	}
 
-	attr := *kcuser.Attributes
+	attr := map[string][]string{}
+	if kcuser.Attributes != nil {
+		attr = *kcuser.Attributes
+	}
 	attr["keyfobID"] = []string{strconv.Itoa(fobID)}
 
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -92,7 +91,10 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) erro
 	}
 	kcuser := kcusers[0]
 
-	attr := *kcuser.Attributes
+	attr := map[string][]string{}
+	if kcuser.Attributes != nil {
+		attr = *kcuser.Attributes
+	}
 	attr["waiverState"] = []string{"Signed"}
 
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -132,7 +134,10 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID str
 	}
 	kcuser := kcusers[0]
 
-	attr := *kcuser.Attributes
+	attr := map[string][]string{}
+	if kcuser.Attributes != nil {
+		attr = *kcuser.Attributes
+	}
 	attr["stripeID"] = []string{stripeID}
 
 	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -221,16 +226,20 @@ type User struct {
 	SignedWaiver, ActivePayment bool
 }
 
+func safeGetAttr(kcuser *gocloak.User, key string) string {
+	if kcuser.Attributes == nil {
+		return ""
+	}
+	attr := *kcuser.Attributes
+	if attr == nil {
+		return ""
+	}
+	return firstElOrZeroVal(attr[key])
+}
+
 func firstElOrZeroVal[T any](slice []T) (val T) {
 	if len(slice) == 0 {
 		return val
 	}
 	return slice[0]
-}
-
-func safeDeref[T any](v *T) (val T) {
-	if v != nil {
-		val = *v
-	}
-	return val
 }
