@@ -10,9 +10,12 @@ import (
 	"text/template"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v75/checkout/session"
 
 	"github.com/TheLab-ms/profile/conf"
 	"github.com/TheLab-ms/profile/keycloak"
+	"github.com/TheLab-ms/profile/stripeutil"
 )
 
 //go:embed assets/*
@@ -37,8 +40,10 @@ func main() {
 	if err := envconfig.Process("", env); err != nil {
 		log.Fatal(err)
 	}
+	stripe.Key = env.StripeKey
 
 	kc := keycloak.New(env)
+	priceCache := stripeutil.StartPriceCache()
 
 	// Redirect from / to /profile
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -50,9 +55,10 @@ func main() {
 	http.HandleFunc("/signup/register", newRegistrationFormHandler(kc))
 
 	// Profile view and associated form POST handlers
-	http.HandleFunc("/profile", newProfileViewHandler(kc))
+	http.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
+	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc))
 
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
@@ -89,7 +95,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newProfileViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
+func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if err != nil {
@@ -98,8 +104,9 @@ func newProfileViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		}
 
 		viewData := map[string]any{
-			"page": "profile",
-			"user": user,
+			"page":   "profile",
+			"user":   user,
+			"prices": pc(),
 		}
 
 		templates.ExecuteTemplate(w, "profile.html", viewData)
@@ -131,6 +138,37 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
+func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := kc.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user from Keycloak: %s", err)
+			return
+		}
+
+		checkoutParams := &stripe.CheckoutSessionParams{
+			Mode:                stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+			CustomerEmail:       &user.Email,
+			AllowPromotionCodes: stripe.Bool(true),
+			SuccessURL:          stripe.String(env.SelfURL + "/profile"),
+			CancelURL:           stripe.String(env.SelfURL + "/profile"),
+			LineItems: []*stripe.CheckoutSessionLineItemParams{{
+				Price:    stripe.String(r.URL.Query().Get("price")),
+				Quantity: stripe.Int64(1),
+			}},
+		}
+		checkoutParams.Context = r.Context()
+
+		s, err := session.New(checkoutParams)
+		if err != nil {
+			renderSystemError(w, "error while creating session: %s", err)
+			return
+		}
+
+		http.Redirect(w, r, s.URL, http.StatusSeeOther)
 	}
 }
 

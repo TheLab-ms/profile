@@ -9,7 +9,7 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-4">
-                <div class="panel panel-success">
+                <div class="panel {{ if .stripe }}panel-success{{ else }}panel-warning{{ end }}">
                     <div class="panel-heading">
                         <h3 class="panel-title">Payment</h3>
                     </div>
@@ -17,8 +17,20 @@
                         <p>
                             Membership dues are processed by Stripe.
                         </p>
-                        <a href="/profile/stripe" role="button" target="_blank" class="btn btn-default">Redirect to
-                            Stripe</a>
+                        {{- if .stripe }}
+                        <div class="btn-group" role="group" aria-label="...">
+                            <a href="/profile/paymentupdate" role="button" class="btn btn-default">Update Payment
+                                Info</a>
+                            <a href="/profile/cancel" role="button" class="btn btn-default">Cancel</a>
+                        </div>
+                        {{- else }}
+                        <div class="btn-group" role="group" aria-label="...">
+                            {{- range .prices }}
+                            <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">{{
+                                .ButtonText }}</a>
+                            {{- end }}
+                        </div>
+                        {{- end }}
                     </div>
                 </div>
 

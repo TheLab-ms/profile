@@ -7,5 +7,6 @@ type Env struct {
 	KeycloakRealm    string `default:"master" split_words:"true"`
 	KeycloakClientID string `split_words:"true" required:"true"`
 
-	SelfURL string `split_words:"true" required:"true"`
+	SelfURL   string `split_words:"true" required:"true"`
+	StripeKey string `split_words:"true"`
 }
