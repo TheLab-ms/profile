@@ -20,8 +20,6 @@ import (
 	"github.com/TheLab-ms/profile/stripeutil"
 )
 
-// TODO: Block the Stripe return URL page until webhook is received (or timeout) to avoid race
-
 //go:embed assets/*
 var assets embed.FS
 

@@ -45,7 +45,6 @@ func StartPriceCache() PriceCache {
 	state := []*Price{}
 
 	go func() {
-		// TODO: There's a tiny startup race here
 		for {
 			list := ListPrices()
 
