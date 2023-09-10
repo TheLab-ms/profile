@@ -65,10 +65,7 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 		return fmt.Errorf("getting current user: %w", err)
 	}
 
-	attr := map[string][]string{}
-	if kcuser.Attributes != nil {
-		attr = *kcuser.Attributes
-	}
+	attr := safeGetAttrs(kcuser)
 	attr["keyfobID"] = []string{strconv.Itoa(fobID)}
 
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -91,10 +88,7 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) erro
 	}
 	kcuser := kcusers[0]
 
-	attr := map[string][]string{}
-	if kcuser.Attributes != nil {
-		attr = *kcuser.Attributes
-	}
+	attr := safeGetAttrs(kcuser)
 	attr["waiverState"] = []string{"Signed"}
 
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -134,10 +128,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID str
 	}
 	kcuser := kcusers[0]
 
-	attr := map[string][]string{}
-	if kcuser.Attributes != nil {
-		attr = *kcuser.Attributes
-	}
+	attr := safeGetAttrs(kcuser)
 	attr["stripeID"] = []string{stripeID}
 
 	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
@@ -226,15 +217,17 @@ type User struct {
 	SignedWaiver, ActivePayment bool
 }
 
+func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
+	if kcuser.Attributes != nil {
+		return *kcuser.Attributes
+	}
+	attr := map[string][]string{}
+	kcuser.Attributes = &attr
+	return attr
+}
+
 func safeGetAttr(kcuser *gocloak.User, key string) string {
-	if kcuser.Attributes == nil {
-		return ""
-	}
-	attr := *kcuser.Attributes
-	if attr == nil {
-		return ""
-	}
-	return firstElOrZeroVal(attr[key])
+	return firstElOrZeroVal(safeGetAttrs(kcuser)[key])
 }
 
 func firstElOrZeroVal[T any](slice []T) (val T) {
