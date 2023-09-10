@@ -209,6 +209,8 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			renderSystemError(w, "error while canceling Stripe subscription: %s", err)
 			return
 		}
+
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 	}
 }
 
