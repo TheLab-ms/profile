@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -52,6 +53,9 @@ func main() {
 	http.HandleFunc("/profile", newProfileViewHandler(kc))
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
+
+	// Webhooks
+	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
 
 	// Embed (into the compiled binary) and serve any files from the assets directory
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
@@ -127,6 +131,29 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
+func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body := struct {
+			Data struct {
+				Email string `json:"email"`
+			} `json:"data"`
+		}{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			log.Printf("invalid json sent to docuseal webhook endpoint: %s", err)
+			w.WriteHeader(400)
+			return
+		}
+
+		log.Printf("got docuseal webhook for user %s", body.Data.Email)
+		err := kc.UpdateUserWaiverState(r.Context(), body.Data.Email)
+		if err != nil {
+			log.Printf("error while updating user's waiver state: %s", err)
+			w.WriteHeader(500)
+			return
+		}
 	}
 }
 

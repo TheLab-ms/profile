@@ -73,6 +73,29 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 	return k.client.UpdateUser(ctx, token.AccessToken, k.realm, *kcuser)
 }
 
+func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) error {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.realm, gocloak.GetUsersParams{
+		Email: &email,
+	})
+	if err != nil {
+		return fmt.Errorf("getting current user: %w", err)
+	}
+	if len(kcusers) == 0 {
+		return errors.New("user not found")
+	}
+	kcuser := kcusers[0]
+
+	attr := *kcuser.Attributes
+	attr["waiverState"] = []string{"Signed"}
+
+	return k.client.UpdateUser(ctx, token.AccessToken, k.realm, *kcuser)
+}
+
 func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last string) error {
 	token, err := k.ensureToken(ctx)
 	if err != nil {
