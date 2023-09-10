@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+
+{{ template "head.html" . }}
+
+<body>
+    {{ template "navbar.html" . }}
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-4">
+
+                <h1>Sign Up</h1>
+                <p>
+                    Create an account with TheLab by providing your email address below.
+                    We'll send you a message with a link to set your password.
+                </p>
+
+                <form action="/register">
+                    <div class="form-group">
+                        <input type="text" name="email" placeholder="email address" class="form-control">
+                    </div>
+                    <input type="submit" value="Create Account" class="btn btn-default">
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

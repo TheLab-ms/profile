@@ -1,0 +1,11 @@
+<nav class="navbar navbar-default">
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        <ul class="nav navbar-nav">
+            <li class='{{- if eq .page "profile" -}}active{{- end -}}'><a href="/">Profile</a></li>
+            <li class='{{- if eq .page "signup" -}}active{{- end -}}'><a href="/signup">Signup</a></li>
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+            <li><a href="/oauth2/sign_out">Logout</a></li>
+        </ul>
+    </div>
+</nav>
