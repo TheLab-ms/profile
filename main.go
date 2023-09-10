@@ -210,6 +210,7 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		time.Sleep(time.Second / 2) // hack to avoid webhook race condition
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 	}
 }
