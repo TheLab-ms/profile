@@ -13,6 +13,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
+	"github.com/stripe/stripe-go/v75/customer"
 	"github.com/stripe/stripe-go/v75/webhook"
 
 	"github.com/TheLab-ms/profile/conf"
@@ -232,8 +233,15 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		}
 		log.Printf("got Stripe subscription event for member %q, state=%s", sub.Customer.Email, sub.Status)
 
+		customer, err := customer.Get(sub.Customer.ID, &stripe.CustomerParams{})
+		if err != nil {
+			log.Printf("unable to get Stripe customer object: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
 		active := sub.Status == stripe.SubscriptionStatusActive
-		err = kc.UpdateUserStripeInfo(r.Context(), sub.Customer.Email, sub.Customer.ID, active)
+		err = kc.UpdateUserStripeInfo(r.Context(), customer.Email, customer.ID, active)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
 			w.WriteHeader(500)
