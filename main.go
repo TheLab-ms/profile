@@ -154,17 +154,25 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 		}
 
 		checkoutParams := &stripe.CheckoutSessionParams{
-			Mode:                stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-			CustomerEmail:       &user.Email,
-			AllowPromotionCodes: stripe.Bool(true),
-			SuccessURL:          stripe.String(env.SelfURL + "/profile"),
-			CancelURL:           stripe.String(env.SelfURL + "/profile"),
-			LineItems: []*stripe.CheckoutSessionLineItemParams{{
-				Price:    stripe.String(r.URL.Query().Get("price")),
-				Quantity: stripe.Int64(1),
-			}},
+			CustomerEmail: &user.Email,
+			SuccessURL:    stripe.String(env.SelfURL + "/profile"),
+			CancelURL:     stripe.String(env.SelfURL + "/profile"),
 		}
 		checkoutParams.Context = r.Context()
+
+		if user.ActivePayment {
+			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSetup))
+			checkoutParams.PaymentMethodTypes = stripe.StringSlice([]string{
+				"card",
+			})
+		} else {
+			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
+			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
+			checkoutParams.LineItems = []*stripe.CheckoutSessionLineItemParams{{
+				Price:    stripe.String(r.URL.Query().Get("price")),
+				Quantity: stripe.Int64(1),
+			}}
+		}
 
 		s, err := session.New(checkoutParams)
 		if err != nil {
