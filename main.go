@@ -230,7 +230,7 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 			w.WriteHeader(400)
 			return
 		}
-		log.Printf("got Stripe webhook event for %s", sub.ID)
+		log.Printf("got Stripe subscription event for member %q, state=%s", sub.Customer.Email, sub.Status)
 
 		active := sub.Status == stripe.SubscriptionStatusActive
 		err = kc.UpdateUserStripeInfo(r.Context(), sub.Customer.Email, sub.Customer.ID, active)
