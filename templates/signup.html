@@ -16,6 +16,18 @@
                     We'll send you a message with a link to set your password.
                 </p>
 
+                {{- if .success }}
+                <div class="alert alert-success" role="alert">
+                    Email sent!
+                </div>
+                {{- end }}
+
+                {{- if .conflict }}
+                <div class="alert alert-warning" role="alert">
+                    This email address is already associated with an account.
+                </div>
+                {{- end }}
+
                 <form action="/signup/register">
                     <div class="form-group">
                         <input type="text" name="email" placeholder="email address" class="form-control">

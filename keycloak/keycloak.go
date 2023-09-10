@@ -184,7 +184,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		Username: &email,
 	})
 	if err != nil {
-		if e, ok := err.(*gocloak.APIError); ok && e.Code == 404 {
+		if e, ok := err.(*gocloak.APIError); ok && e.Code == 409 {
 			return ErrConflict
 		}
 		return fmt.Errorf("creating user: %w", err)

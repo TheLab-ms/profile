@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -88,14 +89,17 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		viewData := map[string]any{"page": "signup", "success": true}
+
 		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
+		if errors.Is(err, keycloak.ErrConflict) {
+			err = nil
+			viewData["conflict"] = true
+			viewData["success"] = false
+		}
 		if err != nil {
 			renderSystemError(w, "error while registering user: %s", err)
 			return
-		}
-
-		viewData := map[string]any{
-			"page": "signup",
 		}
 
 		templates.ExecuteTemplate(w, "signup.html", viewData)
