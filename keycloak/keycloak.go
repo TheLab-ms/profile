@@ -43,15 +43,16 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		return nil, err
 	}
 
-	attr := *kcuser.Attributes
-	fobID, _ := strconv.Atoi(firstElOrZeroVal(attr["keyfobID"]))
-
 	user := &User{
-		First:        safeDeref(kcuser.FirstName),
-		Last:         safeDeref(kcuser.LastName),
-		Email:        safeDeref(kcuser.Email),
-		FobID:        fobID,
-		SignedWaiver: firstElOrZeroVal(attr["waiverState"]) == "Signed",
+		First: safeDeref(kcuser.FirstName),
+		Last:  safeDeref(kcuser.LastName),
+		Email: safeDeref(kcuser.Email),
+	}
+
+	if kcuser.Attributes != nil {
+		attr := *kcuser.Attributes
+		user.SignedWaiver = firstElOrZeroVal(attr["waiverState"]) == "Signed"
+		user.FobID, _ = strconv.Atoi(firstElOrZeroVal(attr["keyfobID"]))
 	}
 
 	return user, nil
