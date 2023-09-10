@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -89,10 +88,6 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 func newProfileViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
-		if errors.Is(err, keycloak.ErrNotFound) {
-			http.Error(w, "user not found (this should not be possible)", 400)
-			return
-		}
 		if err != nil {
 			renderSystemError(w, "error while fetching user: %s", err)
 			return

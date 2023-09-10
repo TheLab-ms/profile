@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("requested resource was not found")
 	ErrConflict = errors.New("conflict")
 )
 
@@ -41,9 +40,6 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 
 	kcuser, err := k.client.GetUserByID(ctx, token.AccessToken, k.realm, userID)
 	if err != nil {
-		if e, ok := err.(*gocloak.APIError); ok && e.Code == 404 {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 
