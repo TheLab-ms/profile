@@ -169,7 +169,9 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 			CustomerEmail: &user.Email,
 			SuccessURL:    stripe.String(env.SelfURL + "/profile?etag=" + etag),
 			CancelURL:     stripe.String(env.SelfURL + "/profile"),
-			Metadata:      map[string]string{"etag": etag},
+			SubscriptionData: &stripe.CheckoutSessionSubscriptionDataParams{
+				Metadata: map[string]string{"etag": etag},
+			},
 		}
 		checkoutParams.Context = r.Context()
 

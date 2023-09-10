@@ -34,7 +34,7 @@ func New(c *conf.Env) *Keycloak {
 }
 
 func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user *User, err error) {
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 10; i++ {
 		user, err = k.GetUser(ctx, userID)
 		if err != nil {
 			return nil, err
@@ -45,6 +45,7 @@ func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user
 
 		time.Sleep(time.Millisecond * 100) // backoff + jitter would be nice here
 	}
+	log.Printf("timeout while waiting for Stripe webhook")
 	return user, nil // timeout
 }
 
