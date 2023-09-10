@@ -47,10 +47,11 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	fobID, _ := strconv.Atoi(firstElOrZeroVal(attr["keyfobID"]))
 
 	user := &User{
-		First: safeDeref(kcuser.FirstName),
-		Last:  safeDeref(kcuser.LastName),
-		Email: safeDeref(kcuser.Email),
-		FobID: fobID,
+		First:        safeDeref(kcuser.FirstName),
+		Last:         safeDeref(kcuser.LastName),
+		Email:        safeDeref(kcuser.Email),
+		FobID:        fobID,
+		SignedWaiver: firstElOrZeroVal(attr["waiverState"]) == "Signed",
 	}
 
 	return user, nil
@@ -167,9 +168,9 @@ func (k *Keycloak) ensureToken(ctx context.Context) (*gocloak.JWT, error) {
 }
 
 type User struct {
-	First, Last, Email string
-	FobID              int
-	ActivePayment      bool
+	First, Last, Email          string
+	FobID                       int
+	SignedWaiver, ActivePayment bool
 }
 
 func firstElOrZeroVal[T any](slice []T) (val T) {

@@ -21,7 +21,7 @@
                     </div>
                 </div>
 
-                <div class="panel panel-warning">
+                <div class="panel {{ if .user.SignedWaiver }}panel-success{{ else }}panel-warning{{ end }}">
                     <div class="panel-heading">
                         <h3 class="panel-title">Waiver</h3>
                     </div>
