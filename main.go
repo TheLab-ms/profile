@@ -3,7 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +19,8 @@ import (
 	"github.com/TheLab-ms/profile/keycloak"
 	"github.com/TheLab-ms/profile/stripeutil"
 )
+
+// TODO: Block the Stripe return URL page until webhook is received (or timeout) to avoid race
 
 //go:embed assets/*
 var assets embed.FS
@@ -200,17 +202,17 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		payload, err := ioutil.ReadAll(r.Body)
+		payload, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("error while reading Stripe webhook body: %s", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			w.WriteHeader(503)
 			return
 		}
 
 		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), env.StripeWebhookKey)
 		if err != nil {
 			log.Printf("error while constructing Stripe webhook event: %s", err)
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(400)
 			return
 		}
 
@@ -227,14 +229,18 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		err = json.Unmarshal(event.Data.Raw, sub)
 		if err != nil {
 			log.Printf("got invalid Stripe webhook event: %s", err)
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(400)
 			return
 		}
 		log.Printf("got Stripe webhook event for %s", sub.ID)
 
-		// TODO
-		// active := sub.Status == stripe.SubscriptionStatusActive
-		// sub.Customer.Email
+		active := sub.Status == stripe.SubscriptionStatusActive
+		err = kc.UpdateUserStripeInfo(r.Context(), sub.Customer.Email, sub.Customer.ID, active)
+		if err != nil {
+			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
+			w.WriteHeader(500)
+			return
+		}
 	}
 }
 

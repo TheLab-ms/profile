@@ -114,6 +114,46 @@ func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last strin
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
+func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID string, active bool) error {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
+		Email: &email,
+	})
+	if err != nil {
+		return fmt.Errorf("getting current user: %w", err)
+	}
+	if len(kcusers) == 0 {
+		return errors.New("user not found")
+	}
+	kcuser := kcusers[0]
+
+	attr := *kcuser.Attributes
+	attr["stripeID"] = []string{stripeID}
+
+	err = k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
+	if err != nil {
+		return fmt.Errorf("updating user: %w", err)
+	}
+
+	// Users should only be in the members group when their Stripe subscription is active
+	inGroup := findInSlice(*kcuser.Groups, k.env.KeycloakMembersGroupID)
+	if !inGroup && active {
+		err = k.client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
+	}
+	if inGroup && !active {
+		err = k.client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
+	}
+	if err != nil {
+		return fmt.Errorf("updating user group membership: %w", err)
+	}
+
+	return nil
+}
+
 func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	token, err := k.ensureToken(ctx)
 	if err != nil {
@@ -185,4 +225,13 @@ func safeDeref[T any](v *T) (val T) {
 		val = *v
 	}
 	return val
+}
+
+func findInSlice(slice []string, val string) bool {
+	for _, cur := range slice {
+		if cur == val {
+			return true
+		}
+	}
+	return false
 }
