@@ -139,8 +139,15 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, email, stripeID str
 		return fmt.Errorf("updating user: %w", err)
 	}
 
+	groups, err := k.client.GetUserGroups(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, gocloak.GetGroupsParams{
+		Search: gocloak.StringP("thelab-members"),
+	})
+	if err != nil {
+		return fmt.Errorf("listing user groups: %w", err)
+	}
+
 	// Users should only be in the members group when their Stripe subscription is active
-	inGroup := findInSlice(*kcuser.Groups, k.env.KeycloakMembersGroupID)
+	inGroup := len(groups) > 0
 	if !inGroup && active {
 		err = k.client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
 	}
@@ -225,13 +232,4 @@ func safeDeref[T any](v *T) (val T) {
 		val = *v
 	}
 	return val
-}
-
-func findInSlice(slice []string, val string) bool {
-	for _, cur := range slice {
-		if cur == val {
-			return true
-		}
-	}
-	return false
 }
