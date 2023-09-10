@@ -9,6 +9,27 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-4">
+                <div class="panel {{ if .user.First }}panel-success{{ else }}panel-warning{{ end }}">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Contact Information</h3>
+                    </div>
+                    <div class="panel-body">
+                        <form class="form" action="/profile/contact">
+                            <div class="form-group">
+                                <label for="first">First Name</label>
+                                <input type="text" id="first" name="first" value="{{ .user.First }}"
+                                    placeholder="First Name" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="first">Last Name</label>
+                                <input type="text" id="last" name="last" value="{{ .user.Last }}"
+                                    placeholder="Last Name" class="form-control">
+                            </div>
+                            <input type="submit" value="Update" class="btn btn-default">
+                        </form>
+                    </div>
+                </div>
+
                 <div class="panel {{ if .user.ActivePayment }}panel-success{{ else }}panel-warning{{ end }}">
                     <div class="panel-heading">
                         <h3 class="panel-title">Payment</h3>
@@ -66,33 +87,6 @@
                                 <input type="text" name="fobid"
                                     value="{{- if ne .user.FobID 0 -}}{{ .user.FobID }}{{- end -}}"
                                     class="form-control">
-                            </div>
-                            <input type="submit" value="Update" class="btn btn-default">
-                        </form>
-                    </div>
-                </div>
-
-                <div class="panel {{ if .user.First }}panel-success{{ else }}panel-warning{{ end }}">
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Contact Information</h3>
-                    </div>
-                    <div class="panel-body">
-                        <form class="form" action="/profile/contact">
-                            <div class="form-group">
-                                <fieldset disabled>
-                                    <label for="email">Email Address</label>
-                                    <input type="text" id="email" value="{{ .user.Email }}" class="form-control">
-                                </fieldset>
-                            </div>
-                            <div class="form-group">
-                                <label for="first">First Name</label>
-                                <input type="text" id="first" name="first" value="{{ .user.First }}"
-                                    placeholder="First Name" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label for="first">Last Name</label>
-                                <input type="text" id="last" name="last" value="{{ .user.Last }}"
-                                    placeholder="Last Name" class="form-control">
                             </div>
                             <input type="submit" value="Update" class="btn btn-default">
                         </form>
