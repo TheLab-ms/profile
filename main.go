@@ -179,9 +179,6 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 			checkoutParams.PaymentMethodTypes = stripe.StringSlice([]string{
 				"card",
 			})
-			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
-				Metadata: map[string]string{"etag": etag},
-			}
 		} else {
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
 			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
@@ -189,6 +186,9 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 				Price:    stripe.String(r.URL.Query().Get("price")),
 				Quantity: stripe.Int64(1),
 			}}
+			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
+				Metadata: map[string]string{"etag": etag},
+			}
 		}
 		s, err := session.New(checkoutParams)
 		if err != nil {
