@@ -33,6 +33,45 @@ func New(c *conf.Env) *Keycloak {
 	return &Keycloak{client: gocloak.NewClient(c.KeycloakURL), env: c}
 }
 
+// RegisterUser creates a user an initiates the password reset + email confirmation flow.
+// Currently the two steps do not occur atomically - we assume the system will not crash between them.
+func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	yes := true
+	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
+		Enabled:  &yes,
+		Email:    &email,
+		Username: &email,
+	})
+	if err != nil {
+		if e, ok := err.(*gocloak.APIError); ok && e.Code == 409 {
+			return ErrConflict
+		}
+		return fmt.Errorf("creating user: %w", err)
+	}
+
+	resp, err := k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
+		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": k.env.KeycloakClientID}).
+		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
+		Put(fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", k.env.KeycloakURL, k.env.KeycloakRealm, userID))
+	if err != nil {
+		return fmt.Errorf("sending message: %w", err)
+	}
+	if resp.IsError() {
+		return fmt.Errorf("unknown error from keycloak: %s", resp.Body())
+	}
+
+	return nil
+}
+
+// GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
+//
+// This is useful when avoiding backtracking for cases in which a change has been written to Stripe but
+// the corresponding webhook may not have been handled.
 func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user *User, err error) {
 	for i := 0; i < 10; i++ {
 		user, err = k.GetUser(ctx, userID)
@@ -187,39 +226,6 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 	}
 	if err != nil {
 		return fmt.Errorf("updating user group membership: %w", err)
-	}
-
-	return nil
-}
-
-func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
-	token, err := k.ensureToken(ctx)
-	if err != nil {
-		return fmt.Errorf("getting token: %w", err)
-	}
-
-	yes := true
-	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
-		Enabled:  &yes,
-		Email:    &email,
-		Username: &email,
-	})
-	if err != nil {
-		if e, ok := err.(*gocloak.APIError); ok && e.Code == 409 {
-			return ErrConflict
-		}
-		return fmt.Errorf("creating user: %w", err)
-	}
-
-	resp, err := k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
-		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": k.env.KeycloakClientID}).
-		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
-		Put(fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", k.env.KeycloakURL, k.env.KeycloakRealm, userID))
-	if err != nil {
-		return fmt.Errorf("sending message: %w", err)
-	}
-	if resp.IsError() {
-		return fmt.Errorf("unknown error from keycloak: %s", resp.Body())
 	}
 
 	return nil

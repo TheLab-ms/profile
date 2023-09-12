@@ -80,11 +80,7 @@ func main() {
 
 func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		viewData := map[string]any{
-			"page": "signup",
-		}
-
-		templates.ExecuteTemplate(w, "signup.html", viewData)
+		templates.ExecuteTemplate(w, "signup.html", map[string]any{"page": "signup"})
 	}
 }
 
@@ -93,11 +89,15 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		viewData := map[string]any{"page": "signup", "success": true}
 
 		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
+
+		// Currently we just render a descriptive error message when the user already exists.
+		// Consider having an option to start the password reset flow, or maybe do so by default.
 		if errors.Is(err, keycloak.ErrConflict) {
 			err = nil
 			viewData["conflict"] = true
 			viewData["success"] = false
 		}
+
 		if err != nil {
 			renderSystemError(w, "error while registering user: %s", err)
 			return
@@ -169,17 +169,19 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 			CustomerEmail: &user.Email,
 			SuccessURL:    stripe.String(env.SelfURL + "/profile?etag=" + etag),
 			CancelURL:     stripe.String(env.SelfURL + "/profile"),
-			SubscriptionData: &stripe.CheckoutSessionSubscriptionDataParams{
-				Metadata: map[string]string{"etag": etag},
-			},
 		}
 		checkoutParams.Context = r.Context()
 
+		// If there is an active payment on record for this user, start a session to update the payment credentials.
+		// Otherwise start the initial Stripe checkout session.
 		if user.ActivePayment {
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSetup))
 			checkoutParams.PaymentMethodTypes = stripe.StringSlice([]string{
 				"card",
 			})
+			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
+				Metadata: map[string]string{"etag": etag},
+			}
 		} else {
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
 			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
@@ -188,7 +190,6 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 				Quantity: stripe.Int64(1),
 			}}
 		}
-
 		s, err := session.New(checkoutParams)
 		if err != nil {
 			renderSystemError(w, "error while creating session: %s", err)
