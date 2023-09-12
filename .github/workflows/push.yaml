@@ -17,29 +17,3 @@ jobs:
           dockerfile: Dockerfile
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout TheLab-ms/gitops repository
-        uses: actions/checkout@v3
-        with:
-          repository: TheLab-ms/gitops
-          ref: main
-          path: gitops
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Thanks for the AWK magic Cameron :)
-      - name: Update TOML file
-        run: |
-          NEW_IMAGE="image = \\\"ghcr.io/thelab-ms/profile@${{ steps.build-and-push.outputs.tags }}\\\""
-          awk -v new_image="$NEW_IMAGE" 'BEGIN {OFS=FS} /^image =/ {$0=new_image} {print}' containers/profile/profile-staging.toml > containers/profile/profile-staging.toml.tmp
-          mv containers/profile/profile-staging.toml.tmp gitops/containers/profile/profile-staging.toml
-
-      - name: Commit changes
-        run: |
-          cd gitops
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Update profile staging image"
-          git push origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
