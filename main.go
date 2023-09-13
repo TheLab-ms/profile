@@ -130,8 +130,14 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http
 
 func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fobID, _ := strconv.Atoi(r.FormValue("fobid"))
-		err := kc.UpdateUserFobID(r.Context(), getUserID(r), fobID)
+		fobIdStr := r.FormValue("fobid")
+		fobID, err := strconv.Atoi(fobIdStr)
+		if (fobIdStr != "" && err != nil) || fobID == 0 {
+			http.Error(w, "invalid fobid", 400)
+			return
+		}
+
+		err = kc.UpdateUserFobID(r.Context(), getUserID(r), fobID)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
@@ -145,6 +151,10 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		first := r.FormValue("first")
 		last := r.FormValue("last")
+		if first == "" || last == "" {
+			http.Error(w, "missing name", 400)
+			return
+		}
 
 		err := kc.UpdateUserName(r.Context(), getUserID(r), first, last)
 		if err != nil {
