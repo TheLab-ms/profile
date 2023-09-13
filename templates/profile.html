@@ -66,8 +66,9 @@
                         <p>
                             Everyone needs to sign a waiver before physically entering TheLab.
                         </p>
-                        <a href="https://waiver.thelab.ms" role="button" target="_blank" class="btn btn-default">Sign
-                            Waiver</a>
+                        {{ if not .user.SignedWaiver }}
+                        <a href="https://waiver.thelab.ms" role="button" target="_blank" class="btn btn-default">Sign Waiver</a>
+                        {{ end }}
                     </div>
                 </div>
 
