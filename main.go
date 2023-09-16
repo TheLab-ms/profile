@@ -22,6 +22,7 @@ import (
 
 	"github.com/TheLab-ms/profile/conf"
 	"github.com/TheLab-ms/profile/keycloak"
+	"github.com/TheLab-ms/profile/moodle"
 	"github.com/TheLab-ms/profile/stripeutil"
 )
 
@@ -50,6 +51,7 @@ func main() {
 	stripe.Key = env.StripeKey
 
 	kc := keycloak.New(env)
+	m := moodle.New(env)
 	priceCache := stripeutil.StartPriceCache()
 
 	// Redirect from / to /profile
@@ -71,6 +73,7 @@ func main() {
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
 	http.HandleFunc("/webhooks/stripe", newStripeWebhookHandler(env, kc))
+	http.HandleFunc("/webhooks/moodle", newMoodleWebhookHandler(env, kc, m))
 
 	// Embed (into the compiled binary) and serve any files from the assets directory
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
@@ -303,6 +306,61 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 			w.WriteHeader(500)
 			return
 		}
+	}
+}
+
+func newMoodleWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, m *moodle.Moodle) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body := struct {
+			EventName string `json:"eventname"`
+			Host      string `json:"host"`
+			Token     string `json:"token"`
+			CourseID  string `json:"courseid"`
+			UserID    string `json:"relateduserid"`
+		}{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			log.Printf("invalid json sent to moodle webhook endpoint: %s", err)
+			w.WriteHeader(400)
+			return
+		}
+		if body.Token != env.MoodleSecret {
+			log.Printf("invalid moodle webhook secret")
+			w.WriteHeader(400)
+			return
+		}
+		switch body.EventName {
+		case "\\core\\event\\course_completed":
+			log.Printf("got moodle course completion submission webhook")
+
+			// Lookup user by moodle ID to get email address
+			moodleUser, err := m.GetUserByID(body.UserID)
+			if err != nil {
+				log.Printf("error while looking up user by moodle ID: %s", err)
+				w.WriteHeader(500)
+				return
+			}
+			// Use email address to lookup user in Keycloak
+			user, err := kc.GetUserByEmail(r.Context(), moodleUser.Email)
+			if err != nil {
+				log.Printf("error while looking up user by email: %s", err)
+				w.WriteHeader(500)
+				return
+			}
+			if user != nil {
+				log.Printf("user %s completed moodle course %s", user.Email, body.CourseID)
+			}
+
+			err = kc.AddUserToGroup(r.Context(), user.ID, "6e413212-c1d8-4bc9-abb3-51944ca35327")
+			if err != nil {
+				log.Printf("error while adding user to group: %s", err)
+				w.WriteHeader(500)
+				return
+			}
+
+		default:
+			log.Printf("unhandled moodle webhook event type: %s, ignoring", body.EventName)
+		}
+
 	}
 }
 
