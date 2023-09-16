@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  check-env:
+    cmds:
+      - test -f .env || cp .env.example .env
+    silent: true
+
+  set-env:
+    cmds:
+      - export $(xargs < .env)
+    silent: true
+
+  run:
+    deps: [check-env, set-env]
+    cmds:
+      - go run main.go
