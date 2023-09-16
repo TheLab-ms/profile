@@ -100,6 +100,40 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 
 	user := &User{
+		ID:                   gocloak.PString(kcuser.ID),
+		First:                gocloak.PString(kcuser.FirstName),
+		Last:                 gocloak.PString(kcuser.LastName),
+		Email:                gocloak.PString(kcuser.Email),
+		SignedWaiver:         safeGetAttr(kcuser, "waiverState") == "Signed",
+		ActivePayment:        safeGetAttr(kcuser, "stripeID") != "",
+		StripeSubscriptionID: safeGetAttr(kcuser, "stripeSubscriptionID"),
+	}
+	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
+	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
+	user.StripeETag = safeGetAttr(kcuser, "stripeCancelationTime")
+
+	return user, nil
+}
+
+func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
+	}
+
+	kcusers, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
+		Email: &email,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getting current user: %w", err)
+	}
+	if len(kcusers) == 0 {
+		return nil, errors.New("user not found")
+	}
+	kcuser := kcusers[0]
+
+	user := &User{
+		ID:                   gocloak.PString(kcuser.ID),
 		First:                gocloak.PString(kcuser.FirstName),
 		Last:                 gocloak.PString(kcuser.LastName),
 		Email:                gocloak.PString(kcuser.Email),
@@ -252,7 +286,7 @@ func (k *Keycloak) ensureToken(ctx context.Context) (*gocloak.JWT, error) {
 }
 
 type User struct {
-	First, Last, Email          string
+	ID, First, Last, Email      string
 	FobID                       int
 	SignedWaiver, ActivePayment bool
 
@@ -279,4 +313,13 @@ func firstElOrZeroVal[T any](slice []T) (val T) {
 		return val
 	}
 	return slice[0]
+}
+
+func (k *Keycloak) AddUserToGroup(ctx context.Context, userID, groupID string) error {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	return k.client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, userID, groupID)
 }
