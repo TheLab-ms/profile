@@ -47,7 +47,8 @@ func (m *Moodle) GetUserByID(id string) (*User, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received non-OK HTTP status: %s", res.Status)
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("received non-OK HTTP status %d: %s", res.StatusCode, body)
 	}
 
 	var users []User // Declare users as a slice of User
