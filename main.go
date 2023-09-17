@@ -309,7 +309,7 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 	}
 }
 
-func newMoodleWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, m *moodle.Moodle) http.HandlerFunc {
+func newMoodleWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, m *moodle.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body := struct {
 			EventName string `json:"eventname"`
