@@ -3,7 +3,6 @@ package discord
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -21,14 +20,15 @@ func GetDiscordUserData(id string) (*DiscordUserData, error) {
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
-
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
@@ -39,6 +39,6 @@ func GetDiscordUserData(id string) (*DiscordUserData, error) {
 	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
 		return nil, err
 	}
-	log.Println(user)
+
 	return &user, nil
 }

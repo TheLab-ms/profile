@@ -113,7 +113,6 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	user.StripeETag = safeGetAttr(kcuser, "stripeCancelationTime")
 
 	kuserlogins, err := k.client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
-	
 	if err != nil {
 		return nil, err
 	}
