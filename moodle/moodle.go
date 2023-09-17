@@ -3,6 +3,7 @@ package moodle
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -33,7 +34,7 @@ func New(c *conf.Env) *Moodle {
 func (m *Moodle) GetUserByID(id string) (*User, error) {
 	url := fmt.Sprintf("%s/webservice/rest/server.php?wstoken=%s&wsfunction=core_user_get_users_by_field&field=id&values[0]=%s&moodlewsrestformat=json", m.url, m.token, id)
 
-	client := &http.Client{}
+	client := http.DefaultClient
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
