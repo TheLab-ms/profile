@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile/conf"
+	"github.com/TheLab-ms/profile/discord"
 )
 
 var (
@@ -144,6 +145,23 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
 	user.StripeETag = safeGetAttr(kcuser, "stripeCancelationTime")
+
+	kuserlogins, err := k.client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, login := range kuserlogins {
+		if *login.IdentityProvider == "discord" {
+			userData, err := discord.GetDiscordUserData(*login.UserID)
+			if err != nil {
+				log.Printf("error getting discord user data: %v", err)
+				continue
+			}
+			user.Discord = *userData
+			continue
+		}
+	}
 
 	return user, nil
 }
@@ -289,6 +307,7 @@ type User struct {
 	ID, First, Last, Email      string
 	FobID                       int
 	SignedWaiver, ActivePayment bool
+	Discord                     discord.DiscordUserData
 
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
