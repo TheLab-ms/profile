@@ -346,9 +346,6 @@ func newMoodleWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, m *moodle.Cli
 				w.WriteHeader(500)
 				return
 			}
-			if user != nil {
-				log.Printf("user %s completed moodle course %s", user.Email, body.CourseID)
-			}
 
 			err = kc.AddUserToGroup(r.Context(), user.ID, "6e413212-c1d8-4bc9-abb3-51944ca35327")
 			if err != nil {
