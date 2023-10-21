@@ -621,6 +621,16 @@ const (
 	CheckoutSessionPaymentStatusUnpaid            CheckoutSessionPaymentStatus = "unpaid"
 )
 
+// Applies to Checkout Sessions with `ui_mode: embedded`. By default, Stripe will always redirect to your return_url after a successful confirmation. If you set `redirect_on_completion: 'if_required'`, then we will only redirect if your user chooses a redirect-based payment method.
+type CheckoutSessionRedirectOnCompletion string
+
+// List of values that CheckoutSessionRedirectOnCompletion can take
+const (
+	CheckoutSessionRedirectOnCompletionAlways     CheckoutSessionRedirectOnCompletion = "always"
+	CheckoutSessionRedirectOnCompletionIfRequired CheckoutSessionRedirectOnCompletion = "if_required"
+	CheckoutSessionRedirectOnCompletionNever      CheckoutSessionRedirectOnCompletion = "never"
+)
+
 // The reasoning behind this tax, for example, if the product is tax exempt. The possible values for this field may be extended as new tax rules are supported.
 type CheckoutSessionShippingCostTaxTaxabilityReason string
 
@@ -687,6 +697,15 @@ const (
 	CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReasonStandardRated        CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReason = "standard_rated"
 	CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReasonTaxableBasisReduced  CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReason = "taxable_basis_reduced"
 	CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReasonZeroRated            CheckoutSessionTotalDetailsBreakdownTaxTaxabilityReason = "zero_rated"
+)
+
+// The UI mode of the Session. Can be `hosted` (default) or `embedded`.
+type CheckoutSessionUIMode string
+
+// List of values that CheckoutSessionUIMode can take
+const (
+	CheckoutSessionUIModeEmbedded CheckoutSessionUIMode = "embedded"
+	CheckoutSessionUIModeHosted   CheckoutSessionUIMode = "hosted"
 )
 
 // Only return the Checkout Sessions for the Customer details specified.
@@ -808,13 +827,19 @@ type CheckoutSessionCustomFieldParams struct {
 
 // Custom text that should be displayed alongside shipping address collection.
 type CheckoutSessionCustomTextShippingAddressParams struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
 	Message *string `form:"message"`
 }
 
 // Custom text that should be displayed alongside the payment confirmation button.
 type CheckoutSessionCustomTextSubmitParams struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
+	Message *string `form:"message"`
+}
+
+// Custom text that should be displayed in place of the default terms of service agreement text.
+type CheckoutSessionCustomTextTermsOfServiceAcceptanceParams struct {
+	// Text may be up to 1200 characters in length.
 	Message *string `form:"message"`
 }
 
@@ -824,6 +849,8 @@ type CheckoutSessionCustomTextParams struct {
 	ShippingAddress *CheckoutSessionCustomTextShippingAddressParams `form:"shipping_address"`
 	// Custom text that should be displayed alongside the payment confirmation button.
 	Submit *CheckoutSessionCustomTextSubmitParams `form:"submit"`
+	// Custom text that should be displayed in place of the default terms of service agreement text.
+	TermsOfServiceAcceptance *CheckoutSessionCustomTextTermsOfServiceAcceptanceParams `form:"terms_of_service_acceptance"`
 }
 
 // Controls what fields on Customer can be updated by the Checkout Session. Can only be provided when `customer` is provided.
@@ -1737,6 +1764,8 @@ type CheckoutSessionParams struct {
 	//
 	// If you'd like information on how to collect a payment method outside of Checkout, read the guide on configuring [subscriptions with a free trial](https://stripe.com/docs/payments/checkout/free-trials).
 	PaymentMethodCollection *string `form:"payment_method_collection"`
+	// The ID of the payment method configuration to use with this Checkout session.
+	PaymentMethodConfiguration *string `form:"payment_method_configuration"`
 	// Payment-method-specific configuration.
 	PaymentMethodOptions *CheckoutSessionPaymentMethodOptionsParams `form:"payment_method_options"`
 	// A list of the types of payment methods (e.g., `card`) this Checkout Session can accept.
@@ -1756,6 +1785,12 @@ type CheckoutSessionParams struct {
 	// We recommend that you review your privacy policy and check with your legal contacts
 	// before using this feature. Learn more about [collecting phone numbers with Checkout](https://stripe.com/docs/payments/checkout/phone-numbers).
 	PhoneNumberCollection *CheckoutSessionPhoneNumberCollectionParams `form:"phone_number_collection"`
+	// This parameter applies to `ui_mode: embedded`. By default, Stripe will always redirect to your return_url after a successful confirmation. If you set `redirect_on_completion: 'if_required'`, then we will only redirect if your user chooses a redirect-based payment method.
+	RedirectOnCompletion *string `form:"redirect_on_completion"`
+	// The URL to redirect your customer back to after they authenticate or cancel their payment on the
+	// payment method's app or site. This parameter is required if ui_mode is `embedded`
+	// and redirect-based payment methods are enabled on the session.
+	ReturnURL *string `form:"return_url"`
 	// A subset of parameters to be passed to SetupIntent creation for Checkout Sessions in `setup` mode.
 	SetupIntentData *CheckoutSessionSetupIntentDataParams `form:"setup_intent_data"`
 	// When set, provides configuration for Checkout to collect a shipping address from a customer.
@@ -1776,6 +1811,8 @@ type CheckoutSessionParams struct {
 	SuccessURL *string `form:"success_url"`
 	// Controls tax ID collection settings for the session.
 	TaxIDCollection *CheckoutSessionTaxIDCollectionParams `form:"tax_id_collection"`
+	// `ui_mode` can be `hosted` or `embedded`. The default is `hosted`.
+	UIMode *string `form:"ui_mode"`
 }
 
 // AddExpand appends a new field to expand.
@@ -1883,8 +1920,6 @@ type CheckoutSessionCustomFieldDropdownOption struct {
 	// The value for this option, not displayed to the customer, used by your integration to reconcile the option selected by the customer. Must be unique to this option, alphanumeric, and up to 100 characters.
 	Value string `json:"value"`
 }
-
-// Configuration for `type=dropdown` fields.
 type CheckoutSessionCustomFieldDropdown struct {
 	// The options available for the customer to select. Up to 200 options allowed.
 	Options []*CheckoutSessionCustomFieldDropdownOption `json:"options"`
@@ -1897,8 +1932,6 @@ type CheckoutSessionCustomFieldLabel struct {
 	// The type of the label.
 	Type CheckoutSessionCustomFieldLabelType `json:"type"`
 }
-
-// Configuration for `type=numeric` fields.
 type CheckoutSessionCustomFieldNumeric struct {
 	// The maximum character length constraint for the customer's input.
 	MaximumLength int64 `json:"maximum_length"`
@@ -1907,8 +1940,6 @@ type CheckoutSessionCustomFieldNumeric struct {
 	// The value entered by the customer, containing only digits.
 	Value string `json:"value"`
 }
-
-// Configuration for `type=text` fields.
 type CheckoutSessionCustomFieldText struct {
 	// The maximum character length constraint for the customer's input.
 	MaximumLength int64 `json:"maximum_length"`
@@ -1920,30 +1951,33 @@ type CheckoutSessionCustomFieldText struct {
 
 // Collect additional information from your customer using custom fields. Up to 2 fields are supported.
 type CheckoutSessionCustomField struct {
-	// Configuration for `type=dropdown` fields.
 	Dropdown *CheckoutSessionCustomFieldDropdown `json:"dropdown"`
 	// String of your choice that your integration can use to reconcile this field. Must be unique to this field, alphanumeric, and up to 200 characters.
-	Key   string                           `json:"key"`
-	Label *CheckoutSessionCustomFieldLabel `json:"label"`
-	// Configuration for `type=numeric` fields.
+	Key     string                             `json:"key"`
+	Label   *CheckoutSessionCustomFieldLabel   `json:"label"`
 	Numeric *CheckoutSessionCustomFieldNumeric `json:"numeric"`
 	// Whether the customer is required to complete the field before completing the Checkout Session. Defaults to `false`.
-	Optional bool `json:"optional"`
-	// Configuration for `type=text` fields.
-	Text *CheckoutSessionCustomFieldText `json:"text"`
+	Optional bool                            `json:"optional"`
+	Text     *CheckoutSessionCustomFieldText `json:"text"`
 	// The type of the field.
 	Type CheckoutSessionCustomFieldType `json:"type"`
 }
 
 // Custom text that should be displayed alongside shipping address collection.
 type CheckoutSessionCustomTextShippingAddress struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
 	Message string `json:"message"`
 }
 
 // Custom text that should be displayed alongside the payment confirmation button.
 type CheckoutSessionCustomTextSubmit struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
+	Message string `json:"message"`
+}
+
+// Custom text that should be displayed in place of the default terms of service agreement text.
+type CheckoutSessionCustomTextTermsOfServiceAcceptance struct {
+	// Text may be up to 1200 characters in length.
 	Message string `json:"message"`
 }
 type CheckoutSessionCustomText struct {
@@ -1951,6 +1985,8 @@ type CheckoutSessionCustomText struct {
 	ShippingAddress *CheckoutSessionCustomTextShippingAddress `json:"shipping_address"`
 	// Custom text that should be displayed alongside the payment confirmation button.
 	Submit *CheckoutSessionCustomTextSubmit `json:"submit"`
+	// Custom text that should be displayed in place of the default terms of service agreement text.
+	TermsOfServiceAcceptance *CheckoutSessionCustomTextTermsOfServiceAcceptance `json:"terms_of_service_acceptance"`
 }
 
 // The customer's tax IDs after a completed Checkout Session.
@@ -2011,6 +2047,14 @@ type CheckoutSessionInvoiceCreation struct {
 	// Indicates whether invoice creation is enabled for the Checkout Session.
 	Enabled     bool                                       `json:"enabled"`
 	InvoiceData *CheckoutSessionInvoiceCreationInvoiceData `json:"invoice_data"`
+}
+
+// Information about the payment method configuration used for this Checkout session if using dynamic payment methods.
+type CheckoutSessionPaymentMethodConfigurationDetails struct {
+	// ID of the payment method configuration used.
+	ID string `json:"id"`
+	// ID of the parent payment method configuration used.
+	Parent string `json:"parent"`
 }
 type CheckoutSessionPaymentMethodOptionsACSSDebitMandateOptions struct {
 	// A URL for custom mandate text
@@ -2431,6 +2475,8 @@ type CheckoutSession struct {
 	// customer ID, a cart ID, or similar, and can be used to reconcile the
 	// Session with your internal systems.
 	ClientReferenceID string `json:"client_reference_id"`
+	// Client secret to be used when initializing Stripe.js embedded checkout.
+	ClientSecret string `json:"client_secret"`
 	// Results of `consent_collection` for this session.
 	Consent *CheckoutSessionConsent `json:"consent"`
 	// When set, provides configuration for the Checkout Session to gather active consent from customers.
@@ -2486,6 +2532,8 @@ type CheckoutSession struct {
 	PaymentLink *PaymentLink `json:"payment_link"`
 	// Configure whether a Checkout Session should collect a payment method.
 	PaymentMethodCollection CheckoutSessionPaymentMethodCollection `json:"payment_method_collection"`
+	// Information about the payment method configuration used for this Checkout session if using dynamic payment methods.
+	PaymentMethodConfigurationDetails *CheckoutSessionPaymentMethodConfigurationDetails `json:"payment_method_configuration_details"`
 	// Payment-method-specific configuration for the PaymentIntent or SetupIntent of this CheckoutSession.
 	PaymentMethodOptions *CheckoutSessionPaymentMethodOptions `json:"payment_method_options"`
 	// A list of the types of payment methods (e.g. card) this Checkout
@@ -2497,6 +2545,10 @@ type CheckoutSession struct {
 	PhoneNumberCollection *CheckoutSessionPhoneNumberCollection `json:"phone_number_collection"`
 	// The ID of the original expired Checkout Session that triggered the recovery flow.
 	RecoveredFrom string `json:"recovered_from"`
+	// Applies to Checkout Sessions with `ui_mode: embedded`. By default, Stripe will always redirect to your return_url after a successful confirmation. If you set `redirect_on_completion: 'if_required'`, then we will only redirect if your user chooses a redirect-based payment method.
+	RedirectOnCompletion CheckoutSessionRedirectOnCompletion `json:"redirect_on_completion"`
+	// Applies to Checkout Sessions with `ui_mode: embedded`. The URL to redirect your customer back to after they authenticate or cancel their payment on the payment method's app or site.
+	ReturnURL string `json:"return_url"`
 	// The ID of the SetupIntent for Checkout Sessions in `setup` mode.
 	SetupIntent *SetupIntent `json:"setup_intent"`
 	// When set, provides configuration for Checkout to collect a shipping address from a customer.
@@ -2522,6 +2574,8 @@ type CheckoutSession struct {
 	TaxIDCollection *CheckoutSessionTaxIDCollection `json:"tax_id_collection"`
 	// Tax and discount details for the computed total amount.
 	TotalDetails *CheckoutSessionTotalDetails `json:"total_details"`
+	// The UI mode of the Session. Can be `hosted` (default) or `embedded`.
+	UIMode CheckoutSessionUIMode `json:"ui_mode"`
 	// The URL to the Checkout Session. Redirect customers to this URL to take them to Checkout. If you're using [Custom Domains](https://stripe.com/docs/payments/checkout/custom-domains), the URL will use your subdomain. Otherwise, it'll use `checkout.stripe.com.`
 	// This value is only present when the session is active.
 	URL string `json:"url"`

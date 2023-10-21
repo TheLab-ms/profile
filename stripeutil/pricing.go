@@ -1,11 +1,15 @@
 package stripeutil
 
 import (
+	"encoding/json"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v75/coupon"
 	"github.com/stripe/stripe-go/v75/price"
 )
 
@@ -37,10 +41,28 @@ func StartPriceCache() PriceCache {
 }
 
 type Price struct {
-	ID, ButtonText string
+	ID, ButtonText        string
+	CouponsByDiscountType map[string]string
 }
 
 func ListPrices() []*Price {
+	coupons := coupon.List(&stripe.CouponListParams{})
+	coupsMap := map[string]map[string]string{} // mapping of price ID -> discount type -> coupon ID
+	for coupons.Next() {
+		coup := coupons.Coupon()
+		if coup.Metadata == nil || coup.Metadata["priceID"] == "" || coup.Metadata["discountTypes"] == "" {
+			continue
+		}
+		priceID := coup.Metadata["priceID"]
+		discountTypes := strings.Split(coup.Metadata["discountTypes"], ",")
+		if coupsMap[priceID] == nil {
+			coupsMap[priceID] = map[string]string{}
+		}
+		for _, dt := range discountTypes {
+			coupsMap[priceID][dt] = coup.ID
+		}
+	}
+
 	params := &stripe.PriceListParams{
 		Active: stripe.Bool(true),
 	}
@@ -53,13 +75,19 @@ func ListPrices() []*Price {
 			continue
 		}
 		p := &Price{
-			ID:         price.ID,
-			ButtonText: price.Metadata["ButtonText"],
+			ID:                    price.ID,
+			ButtonText:            price.Metadata["ButtonText"],
+			CouponsByDiscountType: coupsMap[price.ID],
 		}
 		if p.ButtonText == "" {
 			continue // skip prices that don't have button text
 		}
 		returns = append(returns, p)
+	}
+
+	if os.Getenv("DEV") != "" {
+		js, _ := json.MarshalIndent(&returns, "  ", "  ")
+		log.Printf("discovered prices from stripe: %s", js)
 	}
 
 	return returns

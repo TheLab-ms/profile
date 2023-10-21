@@ -1,5 +1,61 @@
 # Changelog
 
+## 75.11.0 - 2023-10-16
+* [#1751](https://github.com/stripe/stripe-go/pull/1751) Update generated code
+  * Add support for new values `issuing_token.created` and `issuing_token.updated` on enum `EventType`
+* [#1748](https://github.com/stripe/stripe-go/pull/1748) add NewBackendsWithConfig helper
+
+## 75.10.0 - 2023-10-11
+* [#1746](https://github.com/stripe/stripe-go/pull/1746) Update generated code
+  * Add support for `RedirectOnCompletion`, `ReturnURL`, and `UIMode` on `CheckoutSessionParams` and `CheckoutSession`
+  * Add support for `ClientSecret` on `CheckoutSession`
+  * Change type of `CheckoutSessionCustomFieldsDropdown` from `nullable(PaymentPagesCheckoutSessionCustomFieldsDropdown)` to `PaymentPagesCheckoutSessionCustomFieldsDropdown`
+  * Change type of `CheckoutSessionCustomFieldsNumeric` and `CheckoutSessionCustomFieldsText` from `nullable(PaymentPagesCheckoutSessionCustomFieldsNumeric)` to `PaymentPagesCheckoutSessionCustomFieldsNumeric`
+  * Add support for `PostalCode` on `IssuingAuthorizationVerificationData`
+  * Change type of `PaymentLinkCustomFieldsDropdown` from `nullable(PaymentLinksResourceCustomFieldsDropdown)` to `PaymentLinksResourceCustomFieldsDropdown`
+  * Change type of `PaymentLinkCustomFieldsNumeric` and `PaymentLinkCustomFieldsText` from `nullable(PaymentLinksResourceCustomFieldsNumeric)` to `PaymentLinksResourceCustomFieldsNumeric`
+  * Add support for `Offline` on `TerminalConfigurationParams` and `TerminalConfiguration`
+
+## 75.9.0 - 2023-10-05
+* [#1743](https://github.com/stripe/stripe-go/pull/1743) Update generated code
+  * Add support for new resource `Issuing.Token`
+  * Add support for `Get`, `List`, and `Update` methods on resource `Token`
+  * Add support for `AmountAuthorized`, `ExtendedAuthorization`, `IncrementalAuthorization`, `Multicapture`, and `Overcapture` on `ChargePaymentMethodDetailsCard`
+  * Add support for `Token` on `IssuingAuthorization` and `IssuingTransaction`
+  * Add support for `AuthorizationCode` on `IssuingAuthorizationRequestHistory`
+  * Add support for `RequestExtendedAuthorization`, `RequestMulticapture`, and `RequestOvercapture` on `PaymentIntentConfirmPaymentMethodOptionsCardParams`, `PaymentIntentPaymentMethodOptionsCardParams`, and `PaymentIntentPaymentMethodOptionsCard`
+  * Add support for `RequestIncrementalAuthorization` on `PaymentIntentConfirmPaymentMethodOptionsCardParams`, `PaymentIntentConfirmPaymentMethodOptionsCardPresentParams`, `PaymentIntentPaymentMethodOptionsCardParams`, `PaymentIntentPaymentMethodOptionsCardPresentParams`, and `PaymentIntentPaymentMethodOptionsCard`
+  * Add support for `FinalCapture` on `PaymentIntentCaptureParams`
+  * Add support for `Metadata` on `PaymentLinkPaymentIntentDataParams`, `PaymentLinkPaymentIntentData`, `PaymentLinkSubscriptionDataParams`, and `PaymentLinkSubscriptionData`
+  * Add support for `StatementDescriptorSuffix` and `StatementDescriptor` on `PaymentLinkPaymentIntentDataParams` and `PaymentLinkPaymentIntentData`
+  * Add support for `PaymentIntentData` and `SubscriptionData` on `PaymentLinkParams`
+
+## 75.8.0 - 2023-09-28
+* [#1741](https://github.com/stripe/stripe-go/pull/1741) Update generated code
+  * Add support for `Rendering` on `InvoiceParams` and `Invoice`
+
+## 75.7.0 - 2023-09-21
+* [#1738](https://github.com/stripe/stripe-go/pull/1738) Update generated code
+  * Add support for `TermsOfServiceAcceptance` on `CheckoutSessionCustomTextParams`, `CheckoutSessionCustomText`, `PaymentLinkCustomTextParams`, and `PaymentLinkCustomText`
+
+## 75.6.0 - 2023-09-14
+* [#1736](https://github.com/stripe/stripe-go/pull/1736) Update generated code
+  * Add support for new resource `PaymentMethodConfiguration`
+  * Add support for `Get`, `List`, `New`, and `Update` methods on resource `PaymentMethodConfiguration`
+  * Add support for `PaymentMethodConfiguration` on `CheckoutSessionParams`, `PaymentIntentParams`, and `SetupIntentParams`
+  * Add support for `PaymentMethodConfigurationDetails` on `CheckoutSession`, `PaymentIntent`, and `SetupIntent`
+* [#1729](https://github.com/stripe/stripe-go/pull/1729) Update generated code
+  * Add support for `Capture`, `Expire`, `Increment`, `New`, and `Reverse` test helper methods on resource `Issuing.Authorization`
+  * Add support for `CreateForceCapture`, `CreateUnlinkedRefund`, and `Refund` test helper methods on resource `Issuing.Transaction`
+  * Add support for new value `stripe_tax_inactive` on enums `InvoiceLastFinalizationErrorCode`, `PaymentIntentLastPaymentErrorCode`, `SetupAttemptSetupErrorCode`, `SetupIntentLastSetupErrorCode`, and `StripeErrorCode`
+  * Add support for `Nonce` on `EphemeralKeyParams`
+  * Add support for `CashbackAmount` on `IssuingAuthorizationAmountDetails`, `IssuingAuthorizationPendingRequestAmountDetails`, `IssuingAuthorizationRequestHistoryAmountDetails`, and `IssuingTransactionAmountDetails`
+  * Add support for `SerialNumber` on `TerminalReaderListParams`
+
+## 75.5.0 - 2023-09-13
+* [#1735](https://github.com/stripe/stripe-go/pull/1735) Bugfix: point files.New back to files.stripe.com
+* [#1731](https://github.com/stripe/stripe-go/pull/1731) Delay calculation of Stripe-User-Agent
+
 ## 75.4.0 - 2023-09-07
 * [#1724](https://github.com/stripe/stripe-go/pull/1724) Update generated code
   * Add support for new resource `PaymentMethodDomain`

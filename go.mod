@@ -11,6 +11,6 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
-	github.com/stripe/stripe-go/v75 v75.4.0 // indirect
+	github.com/stripe/stripe-go/v75 v75.11.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 )

@@ -256,13 +256,19 @@ type PaymentLinkCustomFieldParams struct {
 
 // Custom text that should be displayed alongside shipping address collection.
 type PaymentLinkCustomTextShippingAddressParams struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
 	Message *string `form:"message"`
 }
 
 // Custom text that should be displayed alongside the payment confirmation button.
 type PaymentLinkCustomTextSubmitParams struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
+	Message *string `form:"message"`
+}
+
+// Custom text that should be displayed in place of the default terms of service agreement text.
+type PaymentLinkCustomTextTermsOfServiceAcceptanceParams struct {
+	// Text may be up to 1200 characters in length.
 	Message *string `form:"message"`
 }
 
@@ -272,6 +278,8 @@ type PaymentLinkCustomTextParams struct {
 	ShippingAddress *PaymentLinkCustomTextShippingAddressParams `form:"shipping_address"`
 	// Custom text that should be displayed alongside the payment confirmation button.
 	Submit *PaymentLinkCustomTextSubmitParams `form:"submit"`
+	// Custom text that should be displayed in place of the default terms of service agreement text.
+	TermsOfServiceAcceptance *PaymentLinkCustomTextTermsOfServiceAcceptanceParams `form:"terms_of_service_acceptance"`
 }
 
 // Default custom fields to be displayed on invoices for this customer.
@@ -347,6 +355,8 @@ type PaymentLinkLineItemParams struct {
 type PaymentLinkPaymentIntentDataParams struct {
 	// Controls when the funds will be captured from the customer's account.
 	CaptureMethod *string `form:"capture_method"`
+	// Set of [key-value pairs](https://stripe.com/docs/api/metadata) that will declaratively set metadata on [Payment Intents](https://stripe.com/docs/api/payment_intents) generated from this payment link. Unlike object-level metadata, this field is declarative. Updates will clear prior values.
+	Metadata map[string]string `form:"metadata"`
 	// Indicates that you intend to [make future payments](https://stripe.com/docs/payments/payment-intents#future-usage) with the payment method collected by this Checkout Session.
 	//
 	// When setting this to `on_session`, Checkout will show a notice to the customer that their payment details will be saved.
@@ -359,6 +369,19 @@ type PaymentLinkPaymentIntentDataParams struct {
 	//
 	// When processing card payments, Checkout also uses `setup_future_usage` to dynamically optimize your payment flow and comply with regional legislation and network rules, such as SCA.
 	SetupFutureUsage *string `form:"setup_future_usage"`
+	// Extra information about the payment. This will appear on your customer's statement when this payment succeeds in creating a charge.
+	StatementDescriptor *string `form:"statement_descriptor"`
+	// Provides information about the charge that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that's set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
+	StatementDescriptorSuffix *string `form:"statement_descriptor_suffix"`
+}
+
+// AddMetadata adds a new key-value pair to the Metadata.
+func (p *PaymentLinkPaymentIntentDataParams) AddMetadata(key string, value string) {
+	if p.Metadata == nil {
+		p.Metadata = make(map[string]string)
+	}
+
+	p.Metadata[key] = value
 }
 
 // Controls phone number collection settings during checkout.
@@ -386,8 +409,19 @@ type PaymentLinkShippingOptionParams struct {
 type PaymentLinkSubscriptionDataParams struct {
 	// The subscription's description, meant to be displayable to the customer. Use this field to optionally store an explanation of the subscription.
 	Description *string `form:"description"`
+	// Set of [key-value pairs](https://stripe.com/docs/api/metadata) that will declaratively set metadata on [Subscriptions](https://stripe.com/docs/api/subscriptions) generated from this payment link. Unlike object-level metadata, this field is declarative. Updates will clear prior values.
+	Metadata map[string]string `form:"metadata"`
 	// Integer representing the number of trial period days before the customer is charged for the first time. Has to be at least 1.
 	TrialPeriodDays *int64 `form:"trial_period_days"`
+}
+
+// AddMetadata adds a new key-value pair to the Metadata.
+func (p *PaymentLinkSubscriptionDataParams) AddMetadata(key string, value string) {
+	if p.Metadata == nil {
+		p.Metadata = make(map[string]string)
+	}
+
+	p.Metadata[key] = value
 }
 
 // Controls tax ID collection during checkout.
@@ -533,8 +567,6 @@ type PaymentLinkCustomFieldDropdownOption struct {
 	// The value for this option, not displayed to the customer, used by your integration to reconcile the option selected by the customer. Must be unique to this option, alphanumeric, and up to 100 characters.
 	Value string `json:"value"`
 }
-
-// Configuration for `type=dropdown` fields.
 type PaymentLinkCustomFieldDropdown struct {
 	// The options available for the customer to select. Up to 200 options allowed.
 	Options []*PaymentLinkCustomFieldDropdownOption `json:"options"`
@@ -545,16 +577,12 @@ type PaymentLinkCustomFieldLabel struct {
 	// The type of the label.
 	Type PaymentLinkCustomFieldLabelType `json:"type"`
 }
-
-// Configuration for `type=numeric` fields.
 type PaymentLinkCustomFieldNumeric struct {
 	// The maximum character length constraint for the customer's input.
 	MaximumLength int64 `json:"maximum_length"`
 	// The minimum character length requirement for the customer's input.
 	MinimumLength int64 `json:"minimum_length"`
 }
-
-// Configuration for `type=text` fields.
 type PaymentLinkCustomFieldText struct {
 	// The maximum character length constraint for the customer's input.
 	MaximumLength int64 `json:"maximum_length"`
@@ -564,30 +592,33 @@ type PaymentLinkCustomFieldText struct {
 
 // Collect additional information from your customer using custom fields. Up to 2 fields are supported.
 type PaymentLinkCustomField struct {
-	// Configuration for `type=dropdown` fields.
 	Dropdown *PaymentLinkCustomFieldDropdown `json:"dropdown"`
 	// String of your choice that your integration can use to reconcile this field. Must be unique to this field, alphanumeric, and up to 200 characters.
-	Key   string                       `json:"key"`
-	Label *PaymentLinkCustomFieldLabel `json:"label"`
-	// Configuration for `type=numeric` fields.
+	Key     string                         `json:"key"`
+	Label   *PaymentLinkCustomFieldLabel   `json:"label"`
 	Numeric *PaymentLinkCustomFieldNumeric `json:"numeric"`
 	// Whether the customer is required to complete the field before completing the Checkout Session. Defaults to `false`.
-	Optional bool `json:"optional"`
-	// Configuration for `type=text` fields.
-	Text *PaymentLinkCustomFieldText `json:"text"`
+	Optional bool                        `json:"optional"`
+	Text     *PaymentLinkCustomFieldText `json:"text"`
 	// The type of the field.
 	Type PaymentLinkCustomFieldType `json:"type"`
 }
 
 // Custom text that should be displayed alongside shipping address collection.
 type PaymentLinkCustomTextShippingAddress struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
 	Message string `json:"message"`
 }
 
 // Custom text that should be displayed alongside the payment confirmation button.
 type PaymentLinkCustomTextSubmit struct {
-	// Text may be up to 1000 characters in length.
+	// Text may be up to 1200 characters in length.
+	Message string `json:"message"`
+}
+
+// Custom text that should be displayed in place of the default terms of service agreement text.
+type PaymentLinkCustomTextTermsOfServiceAcceptance struct {
+	// Text may be up to 1200 characters in length.
 	Message string `json:"message"`
 }
 type PaymentLinkCustomText struct {
@@ -595,6 +626,8 @@ type PaymentLinkCustomText struct {
 	ShippingAddress *PaymentLinkCustomTextShippingAddress `json:"shipping_address"`
 	// Custom text that should be displayed alongside the payment confirmation button.
 	Submit *PaymentLinkCustomTextSubmit `json:"submit"`
+	// Custom text that should be displayed in place of the default terms of service agreement text.
+	TermsOfServiceAcceptance *PaymentLinkCustomTextTermsOfServiceAcceptance `json:"terms_of_service_acceptance"`
 }
 
 // A list of up to 4 custom fields to be displayed on the invoice.
@@ -639,8 +672,14 @@ type PaymentLinkInvoiceCreation struct {
 type PaymentLinkPaymentIntentData struct {
 	// Indicates when the funds will be captured from the customer's account.
 	CaptureMethod PaymentLinkPaymentIntentDataCaptureMethod `json:"capture_method"`
+	// Set of [key-value pairs](https://stripe.com/docs/api/metadata) that will set metadata on [Payment Intents](https://stripe.com/docs/api/payment_intents) generated from this payment link.
+	Metadata map[string]string `json:"metadata"`
 	// Indicates that you intend to make future payments with the payment method collected during checkout.
 	SetupFutureUsage PaymentLinkPaymentIntentDataSetupFutureUsage `json:"setup_future_usage"`
+	// Extra information about the payment. This will appear on your customer's statement when this payment succeeds in creating a charge.
+	StatementDescriptor string `json:"statement_descriptor"`
+	// Provides information about the charge that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that's set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
+	StatementDescriptorSuffix string `json:"statement_descriptor_suffix"`
 }
 type PaymentLinkPhoneNumberCollection struct {
 	// If `true`, a phone number will be collected during checkout.
@@ -665,6 +704,8 @@ type PaymentLinkShippingOption struct {
 type PaymentLinkSubscriptionData struct {
 	// The subscription's description, meant to be displayable to the customer. Use this field to optionally store an explanation of the subscription.
 	Description string `json:"description"`
+	// Set of [key-value pairs](https://stripe.com/docs/api/metadata) that will set metadata on [Subscriptions](https://stripe.com/docs/api/subscriptions) generated from this payment link.
+	Metadata map[string]string `json:"metadata"`
 	// Integer representing the number of trial period days before the customer is charged for the first time.
 	TrialPeriodDays int64 `json:"trial_period_days"`
 }

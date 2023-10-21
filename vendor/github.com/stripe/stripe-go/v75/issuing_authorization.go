@@ -116,8 +116,8 @@ func (p *IssuingAuthorizationParams) AddMetadata(key string, value string) {
 	p.Metadata[key] = value
 }
 
-// Approves a pending Issuing Authorization object. This request should be made within the timeout window of the [real-time authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations) flow.
-// You can also respond directly to the webhook request to approve an authorization (preferred). More details can be found [here](https://stripe.com/docs/issuing/controls/real-time-authorizations#authorization-handling).
+// [Deprecated] Approves a pending Issuing Authorization object. This request should be made within the timeout window of the [real-time authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations) flow.
+// This method is deprecated. Instead, [respond directly to the webhook request to approve an authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations#authorization-handling).
 type IssuingAuthorizationApproveParams struct {
 	Params `form:"*"`
 	// If the authorization's `pending_request.is_amount_controllable` property is `true`, you may provide this value to control how much to hold for the authorization. Must be positive (use [`decline`](https://stripe.com/docs/api/issuing/authorizations/decline) to decline an authorization request).
@@ -142,8 +142,8 @@ func (p *IssuingAuthorizationApproveParams) AddMetadata(key string, value string
 	p.Metadata[key] = value
 }
 
-// Declines a pending Issuing Authorization object. This request should be made within the timeout window of the [real time authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations) flow.
-// You can also respond directly to the webhook request to decline an authorization (preferred). More details can be found [here](https://stripe.com/docs/issuing/controls/real-time-authorizations#authorization-handling).
+// [Deprecated] Declines a pending Issuing Authorization object. This request should be made within the timeout window of the [real time authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations) flow.
+// This method is deprecated. Instead, [respond directly to the webhook request to decline an authorization](https://stripe.com/docs/issuing/controls/real-time-authorizations#authorization-handling).
 type IssuingAuthorizationDeclineParams struct {
 	Params `form:"*"`
 	// Specifies which fields in the response should be expanded.
@@ -170,6 +170,8 @@ func (p *IssuingAuthorizationDeclineParams) AddMetadata(key string, value string
 type IssuingAuthorizationAmountDetails struct {
 	// The fee charged by the ATM for the cash withdrawal.
 	ATMFee int64 `json:"atm_fee"`
+	// The amount of cash requested by the cardholder.
+	CashbackAmount int64 `json:"cashback_amount"`
 }
 type IssuingAuthorizationMerchantData struct {
 	// A categorization of the seller's type of business. See our [merchant categories guide](https://stripe.com/docs/issuing/merchant-categories) for a list of possible values.
@@ -222,6 +224,8 @@ type IssuingAuthorizationRequestHistory struct {
 	AmountDetails *IssuingAuthorizationAmountDetails `json:"amount_details"`
 	// Whether this request was approved.
 	Approved bool `json:"approved"`
+	// A code created by Stripe which is shared with the merchant to validate the authorization. This field will be populated if the authorization message was approved. The code typically starts with the letter "S", followed by a six-digit number. For example, "S498162". Please note that the code is not guaranteed to be unique across authorizations.
+	AuthorizationCode string `json:"authorization_code"`
 	// Time at which the object was created. Measured in seconds since the Unix epoch.
 	Created int64 `json:"created"`
 	// Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase. Must be a [supported currency](https://stripe.com/docs/currencies).
@@ -254,6 +258,8 @@ type IssuingAuthorizationVerificationData struct {
 	CVCCheck IssuingAuthorizationVerificationDataCheck `json:"cvc_check"`
 	// Whether the cardholder provided an expiry date and if it matched Stripe's record.
 	ExpiryCheck IssuingAuthorizationVerificationDataCheck `json:"expiry_check"`
+	// The postal code submitted as part of the authorization used for postal code verification.
+	PostalCode string `json:"postal_code"`
 }
 
 // When an [issued card](https://stripe.com/docs/issuing) is used to make a purchase, an Issuing `Authorization`
@@ -302,6 +308,8 @@ type IssuingAuthorization struct {
 	RequestHistory []*IssuingAuthorizationRequestHistory `json:"request_history"`
 	// The current status of the authorization in its lifecycle.
 	Status IssuingAuthorizationStatus `json:"status"`
+	// [Token](https://stripe.com/docs/api/issuing/tokens/object) object used for this authorization. If a network token was not used for this authorization, this field will be null.
+	Token *IssuingToken `json:"token"`
 	// List of [transactions](https://stripe.com/docs/api/issuing/transactions) associated with this authorization.
 	Transactions []*IssuingTransaction `json:"transactions"`
 	// [Treasury](https://stripe.com/docs/api/treasury) details related to this authorization if it was created on a [FinancialAccount](https://stripe.com/docs/api/treasury/financial_accounts).

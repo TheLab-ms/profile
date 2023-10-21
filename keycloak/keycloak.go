@@ -106,6 +106,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		Email:                gocloak.PString(kcuser.Email),
 		SignedWaiver:         safeGetAttr(kcuser, "waiverState") == "Signed",
 		ActivePayment:        safeGetAttr(kcuser, "stripeID") != "",
+		DiscountType:         safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID: safeGetAttr(kcuser, "stripeSubscriptionID"),
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
@@ -273,6 +274,7 @@ type User struct {
 	First, Last, Email          string
 	FobID                       int
 	SignedWaiver, ActivePayment bool
+	DiscountType                string
 	Discord                     discord.DiscordUserData
 
 	StripeSubscriptionID  string
