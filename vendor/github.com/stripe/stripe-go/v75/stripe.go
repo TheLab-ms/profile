@@ -417,7 +417,7 @@ func (s *BackendImplementation) NewRequest(method, path, key, contentType string
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("Stripe-Version", APIVersion)
 	req.Header.Add("User-Agent", encodedUserAgent)
-	req.Header.Add("X-Stripe-Client-User-Agent", encodedStripeUserAgent)
+	req.Header.Add("X-Stripe-Client-User-Agent", getEncodedStripeUserAgent())
 
 	if params != nil {
 		if params.Context != nil {
@@ -1116,8 +1116,7 @@ func Int64Slice(v []int64) []*int64 {
 	return out
 }
 
-// NewBackends creates a new set of backends with the given HTTP client. You
-// should only need to use this for testing purposes or on App Engine.
+// NewBackends creates a new set of backends with the given HTTP client.
 func NewBackends(httpClient *http.Client) *Backends {
 	apiConfig := &BackendConfig{HTTPClient: httpClient}
 	connectConfig := &BackendConfig{HTTPClient: httpClient}
@@ -1126,6 +1125,16 @@ func NewBackends(httpClient *http.Client) *Backends {
 		API:     GetBackendWithConfig(APIBackend, apiConfig),
 		Connect: GetBackendWithConfig(ConnectBackend, connectConfig),
 		Uploads: GetBackendWithConfig(UploadsBackend, uploadConfig),
+	}
+}
+
+// NewBackendsWithConfig creates a new set of backends with the given config for all backends.
+// Useful for setting up client with a custom logger and http client.
+func NewBackendsWithConfig(config *BackendConfig) *Backends {
+	return &Backends{
+		API:     GetBackendWithConfig(APIBackend, config),
+		Connect: GetBackendWithConfig(ConnectBackend, config),
+		Uploads: GetBackendWithConfig(UploadsBackend, config),
 	}
 }
 
@@ -1217,7 +1226,7 @@ func StringSlice(v []string) []*string {
 //
 
 // clientversion is the binding version
-const clientversion = "75.4.0"
+const clientversion = "75.11.0"
 
 // defaultHTTPTimeout is the default timeout on the http.Client used by the library.
 // This is chosen to be consistent with the other Stripe language libraries and
@@ -1278,6 +1287,7 @@ type requestTelemetry struct {
 var appInfo *AppInfo
 var backends Backends
 var encodedStripeUserAgent string
+var encodedStripeUserAgentReady *sync.Once
 var encodedUserAgent string
 
 // The default HTTP client used for communication with any of Stripe's
@@ -1359,22 +1369,28 @@ func initUserAgent() {
 	if appInfo != nil {
 		encodedUserAgent += " " + appInfo.formatUserAgent()
 	}
+	encodedStripeUserAgentReady = &sync.Once{}
+}
 
-	stripeUserAgent := &stripeClientUserAgent{
-		Application:     appInfo,
-		BindingsVersion: clientversion,
-		Language:        "go",
-		LanguageVersion: runtime.Version(),
-		Publisher:       "stripe",
-		Uname:           getUname(),
-	}
-	marshaled, err := json.Marshal(stripeUserAgent)
-	// Encoding this struct should never be a problem, so we're okay to panic
-	// in case it is for some reason.
-	if err != nil {
-		panic(err)
-	}
-	encodedStripeUserAgent = string(marshaled)
+func getEncodedStripeUserAgent() string {
+	encodedStripeUserAgentReady.Do(func() {
+		stripeUserAgent := &stripeClientUserAgent{
+			Application:     appInfo,
+			BindingsVersion: clientversion,
+			Language:        "go",
+			LanguageVersion: runtime.Version(),
+			Publisher:       "stripe",
+			Uname:           getUname(),
+		}
+		marshaled, err := json.Marshal(stripeUserAgent)
+		// Encoding this struct should never be a problem, so we're okay to panic
+		// in case it is for some reason.
+		if err != nil {
+			panic(err)
+		}
+		encodedStripeUserAgent = string(marshaled)
+	})
+	return encodedStripeUserAgent
 }
 
 func isHTTPWriteMethod(method string) bool {
