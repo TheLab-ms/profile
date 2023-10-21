@@ -65,7 +65,7 @@ func main() {
 	http.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
-	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc))
+	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
 	http.HandleFunc("/profile/cancel", newCancelHandler(env, kc))
 
 	// Webhooks
@@ -166,7 +166,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if err != nil {
@@ -190,10 +190,11 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak) http.Handler
 				"card",
 			})
 		} else {
+			priceID := r.URL.Query().Get("price")
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
-			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
+			checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
 			checkoutParams.LineItems = []*stripe.CheckoutSessionLineItemParams{{
-				Price:    stripe.String(r.URL.Query().Get("price")),
+				Price:    stripe.String(priceID),
 				Quantity: stripe.Int64(1),
 			}}
 			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
@@ -304,6 +305,20 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 			return
 		}
 	}
+}
+
+func calculateDiscount(user *keycloak.User, priceID string, pc stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
+	if user.DiscountType == "" || priceID == "" {
+		return nil
+	}
+	for _, price := range pc() {
+		if price.ID == priceID && price.CouponsByDiscountType != nil && price.CouponsByDiscountType[user.DiscountType] != "" {
+			return []*stripe.CheckoutSessionDiscountParams{{
+				Coupon: stripe.String(price.CouponsByDiscountType[user.DiscountType]),
+			}}
+		}
+	}
+	return nil
 }
 
 // getUserID allows the oauth2proxy header to be overridden for testing.
