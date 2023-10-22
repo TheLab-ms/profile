@@ -13,7 +13,6 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile/conf"
-	"github.com/TheLab-ms/profile/discord"
 )
 
 var (
@@ -120,13 +119,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 
 	for _, login := range kuserlogins {
 		if *login.IdentityProvider == "discord" {
-			userData, err := discord.GetDiscordUserData(*login.UserID)
-			if err != nil {
-				log.Printf("error getting discord user data: %v", err)
-				continue
-			}
-			user.Discord = *userData
-			continue
+			user.DiscordLinked = true
 		}
 	}
 
@@ -275,7 +268,7 @@ type User struct {
 	FobID                       int
 	SignedWaiver, ActivePayment bool
 	DiscountType                string
-	Discord                     discord.DiscordUserData
+	DiscordLinked               bool
 
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
