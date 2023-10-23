@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -74,6 +75,9 @@ func main() {
 
 	// Embed (into the compiled binary) and serve any files from the assets directory
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
+
+	// Various leadership-only admin endpoints
+	http.HandleFunc("/admin/dump", newAdminDumpHandler(kc))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -304,6 +308,16 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 			w.WriteHeader(500)
 			return
 		}
+	}
+}
+
+func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("X-Forwarded-Groups"), "leadership") {
+			http.Error(w, "unauthorized", 403)
+			return
+		}
+		kc.DumpUsers(r.Context(), w)
 	}
 }
 

@@ -2,8 +2,10 @@ package keycloak
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 	"sync"
@@ -41,11 +43,13 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	yes := true
 	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
-		Enabled:  &yes,
+		Enabled:  gocloak.BoolP(true),
 		Email:    &email,
 		Username: &email,
+		Attributes: &map[string][]string{
+			"signupEpochTimeUTC": {strconv.Itoa(int(time.Now().UTC().Unix()))},
+		},
 	})
 	if err != nil {
 		if e, ok := err.(*gocloak.APIError); ok && e.Code == 409 {
@@ -110,7 +114,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
-	user.StripeETag = safeGetAttr(kcuser, "stripeCancelationTime")
+	user.StripeETag = safeGetAttr(kcuser, "stripeETag")
 
 	kuserlogins, err := k.client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
 	if err != nil {
@@ -243,6 +247,98 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 	return nil
 }
 
+func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	cw := csv.NewWriter(w)
+	cw.Write([]string{
+		"First",
+		"Last",
+		"Email",
+		"Email Verified",
+		"Waiver Signed",
+		"Stripe ID",
+		"Stripe Subscription ID",
+		"Discount Type",
+		"Keyfob ID",
+		"Active Member",
+		"Signup Timestamp",
+	})
+
+	var (
+		max           = 50
+		first         = 0
+		activeMembers = map[string]struct{}{}
+	)
+	for {
+		params, err := gocloak.GetQueryParams(gocloak.GetUsersParams{
+			BriefRepresentation: gocloak.BoolP(true),
+			Max:                 &max,
+			First:               &first,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Unfortunately the keycloak client doesn't support the group membership endpoint.
+		// We reuse the client's transport here while specifying our own URL.
+		var memberships []*gocloak.User
+		_, err = k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
+			SetResult(&memberships).
+			SetQueryParams(params).
+			Get(fmt.Sprintf("%s/admin/realms/%s/groups/%s/members", k.env.KeycloakURL, k.env.KeycloakRealm, k.env.KeycloakMembersGroupID))
+		if err != nil {
+			return err
+		}
+		if len(memberships) == 0 {
+			break
+		}
+		first += len(memberships)
+
+		for _, member := range memberships {
+			activeMembers[gocloak.PString(member.ID)] = struct{}{}
+		}
+	}
+
+	max = 50
+	first = 0
+	for {
+		users, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{Max: &max, First: &first})
+		if err != nil {
+			return fmt.Errorf("getting token: %w", err)
+		}
+		if len(users) == 0 {
+			return nil
+		}
+		first += len(users)
+		for _, user := range users {
+			_, member := activeMembers[gocloak.PString(user.ID)]
+			var signupTimeStr string
+			signupTime, _ := strconv.Atoi(safeGetAttr(user, "signupEpochTimeUTC"))
+			if signupTime > 0 {
+				signupTimeStr = time.Unix(int64(signupTime), 0).Local().Format(time.RFC3339)
+			}
+			cw.Write([]string{
+				gocloak.PString(user.FirstName),
+				gocloak.PString(user.LastName),
+				gocloak.PString(user.Email),
+				strconv.FormatBool(gocloak.PBool(user.EmailVerified)),
+				strconv.FormatBool(safeGetAttr(user, "waiverState") == "Signed"),
+				safeGetAttr(user, "stripeID"),
+				safeGetAttr(user, "stripeSubscriptionID"),
+				safeGetAttr(user, "discountType"),
+				safeGetAttr(user, "keyfobID"),
+				strconv.FormatBool(member),
+				signupTimeStr,
+			})
+		}
+		cw.Flush() // avoid buffering entire response in memory
+	}
+}
+
 // For whatever reason the Keycloak client doesn't support token rotation
 func (k *Keycloak) ensureToken(ctx context.Context) (*gocloak.JWT, error) {
 	k.tokenLock.Lock()
@@ -269,6 +365,7 @@ type User struct {
 	SignedWaiver, ActivePayment bool
 	DiscountType                string
 	DiscordLinked               bool
+	AdminNotes                  string // for leadership only!
 
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
