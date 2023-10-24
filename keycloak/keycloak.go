@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ErrConflict = errors.New("conflict")
+	ErrConflict      = errors.New("conflict")
+	ErrLimitExceeded = errors.New("limit exceeded")
 )
 
 type Keycloak struct {
@@ -35,12 +36,20 @@ func New(c *conf.Env) *Keycloak {
 	return &Keycloak{client: gocloak.NewClient(c.KeycloakURL), env: c}
 }
 
-// RegisterUser creates a user an initiates the password reset + email confirmation flow.
+// RegisterUser creates a user and initiates the password reset + email confirmation flow.
 // Currently the two steps do not occur atomically - we assume the system will not crash between them.
 func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	token, err := k.ensureToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
+	}
+
+	n, err := k.client.GetUserCount(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{EmailVerified: gocloak.BoolP(false)})
+	if err != nil {
+		return fmt.Errorf("counting users with unverified email addresses: %w", err)
+	}
+	if n > k.env.MaxUnverifiedAccounts {
+		return ErrLimitExceeded
 	}
 
 	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{

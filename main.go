@@ -89,10 +89,19 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 }
 
 func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
+	rateLimiter := newRateLimiter(10, 2)
 	return func(w http.ResponseWriter, r *http.Request) {
+		<-rateLimiter
 		viewData := map[string]any{"page": "signup", "success": true}
 
 		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
+
+		// Limit the number of accounts with unconfirmed email addresses to avoid spam/abuse
+		if errors.Is(err, keycloak.ErrLimitExceeded) {
+			err = nil
+			viewData["limitExceeded"] = true
+			viewData["success"] = false
+		}
 
 		// Currently we just render a descriptive error message when the user already exists.
 		// Consider having an option to start the password reset flow, or maybe do so by default.
@@ -347,4 +356,16 @@ func getUserID(r *http.Request) string {
 func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
 	log.Printf(msg, args...)
 	http.Error(w, "system error", 500)
+}
+
+func newRateLimiter(qpm, burst int) <-chan struct{} {
+	ch := make(chan struct{}, burst)
+	ch <- struct{}{}
+	go func() {
+		ticker := time.NewTicker(time.Minute / time.Duration(qpm))
+		for range ticker.C {
+			ch <- struct{}{}
+		}
+	}()
+	return ch
 }
