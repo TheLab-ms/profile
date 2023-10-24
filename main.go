@@ -94,6 +94,13 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
 
+		// Limit the number of accounts with unconfirmed email addresses to avoid spam/abuse
+		if errors.Is(err, keycloak.ErrLimitExceeded) {
+			err = nil
+			viewData["limitExceeded"] = true
+			viewData["success"] = false
+		}
+
 		// Currently we just render a descriptive error message when the user already exists.
 		// Consider having an option to start the password reset flow, or maybe do so by default.
 		if errors.Is(err, keycloak.ErrConflict) {

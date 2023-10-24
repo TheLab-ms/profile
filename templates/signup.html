@@ -22,6 +22,12 @@
                 </div>
                 {{- end }}
 
+                {{- if .limitExceeded }}
+                <div class="alert alert-warning" role="alert">
+                    Signups are currently closed due to spam. Please contact TheLab leadership in Discord.
+                </div>
+                {{- end }}
+
                 {{- if .conflict }}
                 <div class="alert alert-warning" role="alert">
                     This email address is already associated with an account.
