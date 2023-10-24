@@ -89,7 +89,7 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 }
 
 func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
-	rateLimiter := newRateLimiter(10)
+	rateLimiter := newRateLimiter(10, 2)
 	return func(w http.ResponseWriter, r *http.Request) {
 		<-rateLimiter
 		viewData := map[string]any{"page": "signup", "success": true}
@@ -358,8 +358,8 @@ func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
 	http.Error(w, "system error", 500)
 }
 
-func newRateLimiter(qpm int) <-chan struct{} {
-	ch := make(chan struct{}, 1)
+func newRateLimiter(qpm, burst int) <-chan struct{} {
+	ch := make(chan struct{}, burst)
 	ch <- struct{}{}
 	go func() {
 		ticker := time.NewTicker(time.Minute / time.Duration(qpm))
