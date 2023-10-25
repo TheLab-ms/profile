@@ -13,39 +13,50 @@ import (
 	"github.com/stripe/stripe-go/v75/price"
 )
 
-// PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
-type PriceCache func() []*Price
-
-func StartPriceCache() PriceCache {
-	var mut sync.Mutex
-	state := []*Price{}
-
-	go func() {
-		for {
-			list := ListPrices()
-
-			mut.Lock()
-			state = list
-			log.Printf("updated cache of %d prices", len(list))
-			mut.Unlock()
-
-			time.Sleep(time.Minute * 15)
-		}
-	}()
-
-	return func() []*Price {
-		mut.Lock()
-		defer mut.Unlock()
-		return state
-	}
-}
-
 type Price struct {
 	ID, ButtonText        string
 	CouponsByDiscountType map[string]string
 }
 
-func ListPrices() []*Price {
+// PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
+type PriceCache struct {
+	mut     sync.Mutex
+	state   []*Price
+	refresh chan struct{}
+}
+
+func (p *PriceCache) Refresh() { p.refresh <- struct{}{} }
+
+func (p *PriceCache) GetPrices() []*Price {
+	p.mut.Lock()
+	defer p.mut.Unlock()
+	return p.state
+}
+
+func (p *PriceCache) Start() {
+	p.refresh = make(chan struct{}, 1)
+	go func() {
+		ticker := time.NewTicker(time.Minute * 15)
+		defer ticker.Stop()
+
+		for {
+			list := p.listPrices()
+
+			p.mut.Lock()
+			p.state = list
+			log.Printf("updated cache of %d prices", len(list))
+			p.mut.Unlock()
+
+			// Wait until the timer or an explicit refresh
+			select {
+			case <-ticker.C:
+			case <-p.refresh:
+			}
+		}
+	}()
+}
+
+func (p *PriceCache) listPrices() []*Price {
 	coupons := coupon.List(&stripe.CouponListParams{})
 	coupsMap := map[string]map[string]string{} // mapping of price ID -> discount type -> coupon ID
 	for coupons.Next() {
