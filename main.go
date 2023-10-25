@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -51,7 +52,8 @@ func main() {
 	stripe.Key = env.StripeKey
 
 	kc := keycloak.New(env)
-	priceCache := stripeutil.StartPriceCache()
+	priceCache := &stripeutil.PriceCache{}
+	priceCache.Start()
 
 	// Redirect from / to /profile
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +79,8 @@ func main() {
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
 
 	// Various leadership-only admin endpoints
-	http.HandleFunc("/admin/dump", newAdminDumpHandler(kc))
+	http.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
+	http.HandleFunc("/admin/refresh", onlyLeadership(newAdminRefreshHandler(priceCache)))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -120,7 +123,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http.HandlerFunc {
+func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUserAtETag(r.Context(), getUserID(r), r.URL.Query().Get("etag"))
 		if err != nil {
@@ -131,7 +134,7 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc stripeutil.PriceCache) http
 		viewData := map[string]any{
 			"page":   "profile",
 			"user":   user,
-			"prices": pc(),
+			"prices": pc.GetPrices(),
 		}
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
@@ -179,7 +182,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc stripeutil.PriceCache) http.HandlerFunc {
+func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if err != nil {
@@ -322,19 +325,36 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 
 func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("X-Forwarded-Groups"), "leadership") {
-			http.Error(w, "unauthorized", 403)
-			return
-		}
 		kc.DumpUsers(r.Context(), w)
 	}
 }
 
-func calculateDiscount(user *keycloak.User, priceID string, pc stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
+func newAdminRefreshHandler(pc *stripeutil.PriceCache) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("explicitly refreshing caches")
+		pc.Refresh()
+
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprintf(w, "accepted\n")
+		w.WriteHeader(202)
+	}
+}
+
+func onlyLeadership(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("X-Forwarded-Groups"), "leadership") {
+			http.Error(w, "unauthorized", 403)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
 	if user.DiscountType == "" || priceID == "" {
 		return nil
 	}
-	for _, price := range pc() {
+	for _, price := range pc.GetPrices() {
 		if price.ID == priceID && price.CouponsByDiscountType != nil && price.CouponsByDiscountType[user.DiscountType] != "" {
 			return []*stripe.CheckoutSessionDiscountParams{{
 				Coupon: stripe.String(price.CouponsByDiscountType[user.DiscountType]),
