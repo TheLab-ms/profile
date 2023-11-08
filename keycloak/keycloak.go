@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -215,6 +216,14 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 
 	attr := safeGetAttrs(kcuser)
 	active := sub.Status == stripe.SubscriptionStatusActive
+
+	// Don't de-activate accounts when we receive cancelation webhooks for a subscription that is not currently in use.
+	// This shouldn't be possible for any accounts other than tests.
+	if !active && !strings.EqualFold(safeGetAttr(kcuser, "stripeSubscriptionID"), sub.ID) {
+		log.Printf("dropping cancelation webhook for user %s because the subscription ID doesn't match the one in keycloak", *kcuser.Email)
+		return nil
+	}
+
 	if active {
 		attr["stripeID"] = []string{customer.ID}
 		attr["stripeSubscriptionID"] = []string{sub.ID}
