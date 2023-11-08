@@ -208,6 +208,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 		} else {
 			priceID := r.URL.Query().Get("price")
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
+			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
 			checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
 			checkoutParams.LineItems = []*stripe.CheckoutSessionLineItemParams{{
 				Price:    stripe.String(priceID),
