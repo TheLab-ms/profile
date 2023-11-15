@@ -82,6 +82,22 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	return nil
 }
 
+func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int) (bool, error) {
+	token, err := k.ensureToken(ctx)
+	if err != nil {
+		return false, fmt.Errorf("getting token: %w", err)
+	}
+
+	users, err := k.client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
+		Q:   gocloak.StringP(fmt.Sprintf("keyfobID:%d", id)),
+		Max: gocloak.IntP(1),
+	})
+	if err != nil {
+		return false, fmt.Errorf("counting users with unverified email addresses: %w", err)
+	}
+	return len(users) > 0, nil
+}
+
 // GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
 //
 // This is useful when avoiding backtracking for cases in which a change has been written to Stripe but
@@ -152,7 +168,11 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int
 	}
 
 	attr := safeGetAttrs(kcuser)
-	attr["keyfobID"] = []string{strconv.Itoa(fobID)}
+	if fobID == 0 {
+		attr["keyfobID"] = []string{""}
+	} else {
+		attr["keyfobID"] = []string{strconv.Itoa(fobID)}
+	}
 
 	return k.client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
