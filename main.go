@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -97,7 +98,13 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		<-rateLimiter
 		viewData := map[string]any{"page": "signup", "success": true}
 
-		err := kc.RegisterUser(r.Context(), r.FormValue("email"))
+		email := r.FormValue("email")
+		if _, err := mail.ParseAddress(email); err != nil {
+			http.Error(w, "invalid email address", 400)
+			return
+		}
+
+		err := kc.RegisterUser(r.Context(), email)
 
 		// Limit the number of accounts with unconfirmed email addresses to avoid spam/abuse
 		if errors.Is(err, keycloak.ErrLimitExceeded) {
@@ -148,9 +155,21 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fobIdStr := r.FormValue("fobid")
 		fobID, err := strconv.Atoi(fobIdStr)
-		if (fobIdStr != "" && err != nil) || fobID == 0 {
+		if fobIdStr != "" && err != nil {
 			http.Error(w, "invalid fobid", 400)
 			return
+		}
+
+		if fobIdStr != "" {
+			conflict, err := kc.BadgeIDInUse(r.Context(), fobID)
+			if err != nil {
+				renderSystemError(w, "error while checking if badge ID is in use: %s", err)
+				return
+			}
+			if conflict {
+				http.Error(w, "that badge ID is already in use", 400)
+				return
+			}
 		}
 
 		err = kc.UpdateUserFobID(r.Context(), getUserID(r), fobID)
@@ -169,6 +188,10 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		last := r.FormValue("last")
 		if first == "" || last == "" {
 			http.Error(w, "missing name", 400)
+			return
+		}
+		if len(first) > 256 || len(last) > 256 {
+			http.Error(w, "name is too long", 400)
 			return
 		}
 
