@@ -130,13 +130,14 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	}
 
 	user := &User{
-		First:                gocloak.PString(kcuser.FirstName),
-		Last:                 gocloak.PString(kcuser.LastName),
-		Email:                gocloak.PString(kcuser.Email),
-		SignedWaiver:         safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActivePayment:        safeGetAttr(kcuser, "stripeID") != "",
-		DiscountType:         safeGetAttr(kcuser, "discountType"),
-		StripeSubscriptionID: safeGetAttr(kcuser, "stripeSubscriptionID"),
+		First:                  gocloak.PString(kcuser.FirstName),
+		Last:                   gocloak.PString(kcuser.LastName),
+		Email:                  gocloak.PString(kcuser.Email),
+		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
+		ActivePayment:          safeGetAttr(kcuser, "stripeID") != "",
+		DiscountType:           safeGetAttr(kcuser, "discountType"),
+		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
+		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
@@ -404,6 +405,7 @@ type User struct {
 	DiscountType                string
 	DiscordLinked               bool
 	AdminNotes                  string // for leadership only!
+	BuildingAccessApproved      bool
 
 	StripeSubscriptionID  string
 	StripeCancelationTime int64

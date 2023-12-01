@@ -75,10 +75,12 @@
           </div>
           <div class="panel-body">
             <p>Members get 24 hour access to TheLab using RFID keyfobs.</p>
-            <p>
-              Check the calendar for keyfob pickup events to physically pick
-              up a fob.
-            </p>
+            {{- if not .user.BuildingAccessApproved }}
+            <div class="alert alert-info" role="alert">
+              New accounts need to be approved by TheLab leadership before building access is enabled.<br>
+              Attend a Keyfob Pickup event and get to know us, pick up a new keyfob, and get your account activated!
+            </div>
+            {{- end }}
             <form class="form-inline" action="/profile/keyfob">
               <div class="form-group">
                 <input type="text" name="fobid" value="{{- if ne .user.FobID 0 -}}{{ .user.FobID }}{{- end -}}"
