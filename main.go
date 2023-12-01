@@ -238,7 +238,8 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 				Quantity: stripe.Int64(1),
 			}}
 			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
-				Metadata: map[string]string{"etag": etag},
+				Metadata:           map[string]string{"etag": etag},
+				BillingCycleAnchor: calculateBillingCycleAnchor(user),
 			}
 		}
 		s, err := session.New(checkoutParams)
@@ -386,6 +387,21 @@ func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.Price
 		}
 	}
 	return nil
+}
+
+func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
+	if user.LastPaypalTransactionPrice == 0 {
+		return nil
+	}
+
+	// Annual
+	if user.LastPaypalTransactionPrice > 41 {
+		ts := user.LastPaypalTransactionTime.Add(time.Hour * 24 * 365).Unix()
+		return &ts
+	}
+
+	ts := user.LastPaypalTransactionTime.Add(time.Hour * 24 * 30).Unix()
+	return &ts
 }
 
 // getUserID allows the oauth2proxy header to be overridden for testing.

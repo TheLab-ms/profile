@@ -3,6 +3,7 @@ package keycloak
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -143,6 +144,23 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
 	user.StripeETag = safeGetAttr(kcuser, "stripeETag")
 
+	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
+		s := struct {
+			Price       float64
+			TimeRFC3339 string
+		}{}
+		err := json.Unmarshal([]byte(js), &s)
+		if err != nil {
+			return nil, err
+		}
+
+		user.LastPaypalTransactionPrice = s.Price
+		user.LastPaypalTransactionTime, err = time.Parse(time.RFC3339, s.TimeRFC3339)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	kuserlogins, err := k.Client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
 	if err != nil {
 		return nil, err
@@ -244,6 +262,9 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 		log.Printf("dropping cancelation webhook for user %s because the subscription ID doesn't match the one in keycloak", *kcuser.Email)
 		return nil
 	}
+
+	// Always clean up any old paypal metadata
+	attr["paypalMigrationMetadata"] = []string{sub.ID}
 
 	if active {
 		attr["stripeID"] = []string{customer.ID}
@@ -410,6 +431,9 @@ type User struct {
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
 	StripeETag            string
+
+	LastPaypalTransactionPrice float64
+	LastPaypalTransactionTime  time.Time
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
