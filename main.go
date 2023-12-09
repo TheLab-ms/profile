@@ -233,10 +233,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
 			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
 			checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
-			checkoutParams.LineItems = []*stripe.CheckoutSessionLineItemParams{{
-				Price:    stripe.String(priceID),
-				Quantity: stripe.Int64(1),
-			}}
+			checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
 			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 				Metadata:           map[string]string{"etag": etag},
 				BillingCycleAnchor: calculateBillingCycleAnchor(user),
@@ -373,6 +370,35 @@ func onlyLeadership(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+func calculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionLineItemParams {
+	// Migrate existing paypal users at their current rate
+	if priceID == "paypal" {
+		interval := "month"
+		if user.LastPaypalTransactionPrice > 50 {
+			interval = "year"
+		}
+
+		cents := user.LastPaypalTransactionPrice * 100
+		productID := pc.GetPrices()[0].ProductID // all prices reference the same product
+		return []*stripe.CheckoutSessionLineItemParams{{
+			Quantity: stripe.Int64(1),
+			PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+				Currency:          stripe.String("usd"),
+				Product:           &productID,
+				UnitAmountDecimal: &cents,
+				Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
+					Interval: &interval,
+				},
+			},
+		}}
+	}
+
+	return []*stripe.CheckoutSessionLineItemParams{{
+		Price:    stripe.String(priceID),
+		Quantity: stripe.Int64(1),
+	}}
 }
 
 func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
