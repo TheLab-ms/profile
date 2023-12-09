@@ -14,8 +14,8 @@ import (
 )
 
 type Price struct {
-	ID, ButtonText        string
-	CouponsByDiscountType map[string]string
+	ID, ProductID, ButtonText string
+	CouponsByDiscountType     map[string]string
 }
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
@@ -89,6 +89,9 @@ func (p *PriceCache) listPrices() []*Price {
 			ID:                    price.ID,
 			ButtonText:            price.Metadata["ButtonText"],
 			CouponsByDiscountType: coupsMap[price.ID],
+		}
+		if price.Product != nil {
+			p.ProductID = price.Product.ID
 		}
 		if p.ButtonText == "" {
 			continue // skip prices that don't have button text
