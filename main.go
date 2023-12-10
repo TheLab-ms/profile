@@ -420,13 +420,21 @@ func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
 		return nil
 	}
 
-	// Annual
+	var end time.Time
 	if user.LastPaypalTransactionPrice > 41 {
-		ts := user.LastPaypalTransactionTime.Add(time.Hour * 24 * 365).Unix()
-		return &ts
+		// Annual
+		end = user.LastPaypalTransactionTime.Add(time.Hour * 24 * 365)
+	} else {
+		// Monthly
+		end = user.LastPaypalTransactionTime.Add(time.Hour * 24 * 30)
 	}
 
-	ts := user.LastPaypalTransactionTime.Add(time.Hour * 24 * 30).Unix()
+	// Stripe will throw an error if the cycle anchor is before the current time
+	if time.Until(end) < time.Minute {
+		return nil
+	}
+
+	ts := end.Unix()
 	return &ts
 }
 
