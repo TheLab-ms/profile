@@ -32,8 +32,12 @@ github.com/stripe/stripe-go/v75/coupon
 github.com/stripe/stripe-go/v75/customer
 github.com/stripe/stripe-go/v75/form
 github.com/stripe/stripe-go/v75/price
+github.com/stripe/stripe-go/v75/product
 github.com/stripe/stripe-go/v75/subscription
 github.com/stripe/stripe-go/v75/webhook
 # golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/publicsuffix
+# golang.org/x/time v0.5.0
+## explicit; go 1.18
+golang.org/x/time/rate

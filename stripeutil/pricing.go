@@ -1,9 +1,7 @@
 package stripeutil
 
 import (
-	"encoding/json"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -11,11 +9,14 @@ import (
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/coupon"
 	"github.com/stripe/stripe-go/v75/price"
+	"github.com/stripe/stripe-go/v75/product"
 )
 
 type Price struct {
-	ID, ProductID, ButtonText string
-	CouponsByDiscountType     map[string]string
+	ID, ProductID         string
+	Annual                bool
+	Price                 float64
+	CouponsByDiscountType map[string]string
 }
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
@@ -41,6 +42,11 @@ func (p *PriceCache) Start() {
 
 		for {
 			list := p.listPrices()
+			if len(list) == 0 || list == nil {
+				time.Sleep(time.Second)
+				log.Printf("failed to populate Stripe cache - will retry")
+				continue
+			}
 
 			p.mut.Lock()
 			p.state = list
@@ -57,6 +63,20 @@ func (p *PriceCache) Start() {
 }
 
 func (p *PriceCache) listPrices() []*Price {
+	// Discover product ID
+	products := product.Search(&stripe.ProductSearchParams{
+		SearchParams: stripe.SearchParams{
+			Query: `name:"Membership"`,
+		},
+	})
+	products.Next()
+	product := products.Product()
+	if product == nil {
+		// the stripe library logs errors - no need to do so here
+		return nil
+	}
+
+	// Coupons
 	coupons := coupon.List(&stripe.CouponListParams{})
 	coupsMap := map[string]map[string]string{} // mapping of price ID -> discount type -> coupon ID
 	for coupons.Next() {
@@ -74,34 +94,34 @@ func (p *PriceCache) listPrices() []*Price {
 		}
 	}
 
-	params := &stripe.PriceListParams{
-		Active: stripe.Bool(true),
-	}
-
-	prices := price.List(params)
+	// Prices
+	prices := price.List(&stripe.PriceListParams{
+		Active:  stripe.Bool(true),
+		Type:    stripe.String("recurring"),
+		Product: &product.ID,
+	})
 	returns := []*Price{}
 	for prices.Next() {
 		price := prices.Price()
-		if price.Metadata == nil {
+		if price.Metadata == nil || price.Recurring == nil || !price.Active || price.Deleted {
 			continue
 		}
 		p := &Price{
 			ID:                    price.ID,
-			ButtonText:            price.Metadata["ButtonText"],
 			CouponsByDiscountType: coupsMap[price.ID],
+			Price:                 price.UnitAmountDecimal / 100,
+		}
+		switch price.Recurring.Interval {
+		case stripe.PriceRecurringIntervalMonth:
+		case stripe.PriceRecurringIntervalYear:
+			p.Annual = true
+		default:
+			continue
 		}
 		if price.Product != nil {
 			p.ProductID = price.Product.ID
 		}
-		if p.ButtonText == "" {
-			continue // skip prices that don't have button text
-		}
 		returns = append(returns, p)
-	}
-
-	if os.Getenv("DEV") != "" {
-		js, _ := json.MarshalIndent(&returns, "  ", "  ")
-		log.Printf("discovered prices from stripe: %s", js)
 	}
 
 	return returns

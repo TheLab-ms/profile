@@ -31,7 +31,9 @@
 
         <div class="btn-group" role="group" aria-label="...">
             {{- range .prices }}
-            <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">{{ .ButtonText }}</a>
+            <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">
+                Subscribe {{ if .Annual }}yearly{{ else }}monthly{{ end }} at ${{ printf "%.2f" .Price }}
+            </a>
             {{- end }}
         </div>
 
