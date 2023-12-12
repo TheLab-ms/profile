@@ -264,7 +264,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 	}
 
 	// Always clean up any old paypal metadata
-	attr["paypalMigrationMetadata"] = []string{sub.ID}
+	attr["paypalMigrationMetadata"] = []string{}
 
 	if active {
 		attr["stripeID"] = []string{customer.ID}

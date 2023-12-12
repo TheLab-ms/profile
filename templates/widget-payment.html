@@ -5,7 +5,7 @@
 
     <div class="panel-body">
         {{- if .user.ActivePayment }} {{- if .expiration }}
-        <div class="alert alert-info" role="alert">
+        <div class="alert alert-warning" role="alert">
             Your subscription has been canceled. Membership will expire at
             {{ .expiration }}.
         </div>
@@ -16,7 +16,7 @@
         </div>
         {{- end }} {{- else }}
 
-        {{- if .user.LastPaypalTransactionTime }}
+        {{- if .migratedAccount }}
         <div class="alert alert-warning" role="alert">
             We found a Paypal payment associated with your email address from {{
             .user.LastPaypalTransactionTime.Format "01/02/2006" }}. Your account will be prorated accordingly when
