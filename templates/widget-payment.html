@@ -1,0 +1,40 @@
+<div class="panel panel-success">
+    <div class="panel-heading">
+        <h3 class="panel-title">Payment</h3>
+    </div>
+
+    <div class="panel-body">
+        {{- if .user.ActivePayment }} {{- if .expiration }}
+        <div class="alert alert-info" role="alert">
+            Your subscription has been canceled. Membership will expire at
+            {{ .expiration }}.
+        </div>
+        {{- else }}
+        <div class="btn-group" role="group" aria-label="...">
+            <a href="/profile/stripe" role="button" class="btn btn-default">Update Payment Info</a>
+            <a href="/profile/cancel" role="button" class="btn btn-default">Cancel Membership</a>
+        </div>
+        {{- end }} {{- else }}
+
+        {{- if .user.LastPaypalTransactionTime }}
+        <div class="alert alert-info" role="alert">
+            We found a Paypal payment associated with your email address from {{
+            .user.LastPaypalTransactionTime.Format "01/02/2006" }}. Your account will be prorated accordingly when
+            migrating your membership to this system.<br><br>
+            After signing up, you can cancel your existing Paypal subscription using a link in your latest Paypal
+            receipt
+            email.<br><br>
+            <a href="/profile/stripe?price=paypal" role="button" class="btn btn-default">
+                Migrate Existing Membership</a>
+        </div>
+        {{- end }}
+
+        <div class="btn-group" role="group" aria-label="...">
+            {{- range .prices }}
+            <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">{{ .ButtonText }}</a>
+            {{- end }}
+        </div>
+
+        {{- end }}
+    </div>
+</div>
