@@ -42,6 +42,11 @@ func (p *PriceCache) Start() {
 
 		for {
 			list := p.listPrices()
+			if len(list) == 0 || list == nil {
+				time.Sleep(time.Second)
+				log.Printf("failed to populate Stripe cache - will retry")
+				continue
+			}
 
 			p.mut.Lock()
 			p.state = list
@@ -67,7 +72,8 @@ func (p *PriceCache) listPrices() []*Price {
 	products.Next()
 	product := products.Product()
 	if product == nil {
-		return nil // TODO: Retry errors to avoid running with an empty cache (or maybe just fail liveness probes)
+		// the stripe library logs errors - no need to do so here
+		return nil
 	}
 
 	// Coupons
