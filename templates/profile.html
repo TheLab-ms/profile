@@ -66,7 +66,8 @@
           </div>
         </div>
 
-        <div class="panel {{ if .user.SignedWaiver }}panel-success{{ else }}panel-warning{{ end }}">
+        {{- if not .user.SignedWaiver }}
+        <div class="panel panel-warning">
           <div class="panel-heading">
             <h3 class="panel-title">Waiver</h3>
           </div>
@@ -75,11 +76,10 @@
               Everyone needs to sign a waiver before physically entering
               TheLab.
             </p>
-            {{ if not .user.SignedWaiver }}
             <a href="https://waiver.thelab.ms" role="button" target="_blank" class="btn btn-default">Sign Waiver</a>
-            {{ end }}
           </div>
         </div>
+        {{- end }}
 
         <div class="panel {{ if ne .user.FobID 0 }}panel-success{{ else }}panel-warning{{ end }}">
           <div class="panel-heading">
