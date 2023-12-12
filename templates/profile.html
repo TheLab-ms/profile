@@ -24,7 +24,13 @@
                 <input type="text" id="last" name="last" value="{{ .user.Last }}" placeholder="Last Name"
                   class="form-control" />
               </div>
-              <input type="submit" value="Update" class="btn btn-default" />
+              <div class="btn-toolbar" role="toolbar">
+                <input type="submit" value="Update" class="btn btn-default" />
+                <a class="btn btn-info"
+                  href="https://keycloak.apps.thelab.ms/realms/master/account/#/security/linked-accounts">
+                  Link Discord Account
+                </a>
+              </div>
             </form>
           </div>
         </div>
@@ -100,31 +106,6 @@
               </div>
               <input type="submit" value="Update" class="btn btn-default" />
             </form>
-          </div>
-        </div>
-
-        <div class="panel {{ if .user.DiscordLinked }}panel-success{{ else }}panel-warning{{ end }}">
-          <div class="panel-heading">
-            <h3 class="panel-title">Discord</h3>
-          </div>
-          <div class="panel-body">
-            {{- if .user.DiscordLinked }}
-            <p>
-              A discord user has been linked to your account.
-            </p>
-            <a class="btn btn-default"
-              href="https://keycloak.apps.thelab.ms/realms/master/account/#/security/linked-accounts">
-              Modify
-            </a>
-            {{- else }}
-            <p>
-              Link a discord user to associate it with your account at TheLab.
-            </p>
-            <a class="btn btn-default"
-              href="https://keycloak.apps.thelab.ms/realms/master/account/#/security/linked-accounts">
-              Link
-            </a>
-            {{- end }}
           </div>
         </div>
       </div>
