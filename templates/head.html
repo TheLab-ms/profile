@@ -5,48 +5,36 @@
   <script src="/assets/bootstrap.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    .profile-card {
-      background-color: #f3f3f3;
-      color: #2c2f33;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      padding: 15px;
-      width: 250px;
-    }
-    
-    .profile-image {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-    }
-
-    .profile-username {
-      margin-left: 10px;
-      font-weight: bold;
-    }
-
-    .profile-container {
-      display: flex;
-      align-items: center;
-    }
-
     .custom-navbar {
       background-color: #99cc66;
+      border-radius: 0px;
     }
 
-    /* Change the text color of unselected items */
     .custom-navbar .nav > li > a {
-      color: #6f6f6f; /* Or any color for the active state */
+      border-bottom: 2px solid transparent;
+      color: #333;
     }
 
-    /* Change the hover color */
     .custom-navbar .nav > li > a:hover {
-      color: #606060; /* Or any color for the active state */
+      border-bottom: 2px solid #000;
+      background: transparent;
     }
 
-    /* Change the active item color */
     .custom-navbar .nav > li.active > a {
-      color: #494949; /* Or any color for the active state */
+      border-bottom: 2px solid #000;
+    }
+
+    .panel-success > .panel-heading {
+      background: #ccecab;
+      border-color: #ccecab;
+    }
+
+    .panel-success {
+      border-color: #ccecab;
+    }
+
+    .alert {
+      border: none;
     }
   </style>
 </head>
