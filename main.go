@@ -22,6 +22,7 @@ import (
 	"github.com/stripe/stripe-go/v75/customer"
 	"github.com/stripe/stripe-go/v75/subscription"
 	"github.com/stripe/stripe-go/v75/webhook"
+	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/conf"
 	"github.com/TheLab-ms/profile/keycloak"
@@ -93,9 +94,11 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 }
 
 func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
-	rateLimiter := newRateLimiter(10, 2)
+	rateLimiter := rate.NewLimiter(1, 2)
 	return func(w http.ResponseWriter, r *http.Request) {
-		<-rateLimiter
+		if err := rateLimiter.Wait(r.Context()); err != nil {
+			log.Printf("rate limiter error: %s", err)
+		}
 		viewData := map[string]any{"page": "signup", "success": true}
 
 		email := r.FormValue("email")
@@ -451,16 +454,4 @@ func getUserID(r *http.Request) string {
 func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
 	log.Printf(msg, args...)
 	http.Error(w, "system error", 500)
-}
-
-func newRateLimiter(qpm, burst int) <-chan struct{} {
-	ch := make(chan struct{}, burst)
-	ch <- struct{}{}
-	go func() {
-		ticker := time.NewTicker(time.Minute / time.Duration(qpm))
-		for range ticker.C {
-			ch <- struct{}{}
-		}
-	}()
-	return ch
 }
