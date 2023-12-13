@@ -110,6 +110,29 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		return nil, err
 	}
 
+	return k.buildUser(ctx, kcuser)
+}
+
+func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
+	}
+
+	kcusers, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
+		Email: &email,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getting current user: %w", err)
+	}
+	if len(kcusers) == 0 {
+		return nil, errors.New("user not found")
+	}
+
+	return k.buildUser(ctx, kcusers[0])
+}
+
+func (k *Keycloak) buildUser(ctx context.Context, kcuser *gocloak.User) (*User, error) {
 	user := &User{
 		First:                  gocloak.PString(kcuser.FirstName),
 		Last:                   gocloak.PString(kcuser.LastName),
@@ -126,8 +149,9 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 
 	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
 		s := struct {
-			Price       float64
-			TimeRFC3339 string
+			Price         float64
+			TimeRFC3339   string
+			TransactionID string
 		}{}
 		err := json.Unmarshal([]byte(js), &s)
 		if err != nil {
@@ -135,10 +159,16 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		}
 
 		user.LastPaypalTransactionPrice = s.Price
+		user.PaypalSubscriptionID = s.TransactionID
 		user.LastPaypalTransactionTime, err = time.Parse(time.RFC3339, s.TimeRFC3339)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
 	}
 
 	kuserlogins, err := k.Client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
@@ -414,6 +444,7 @@ type User struct {
 
 	LastPaypalTransactionPrice float64
 	LastPaypalTransactionTime  time.Time
+	PaypalSubscriptionID       string
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {

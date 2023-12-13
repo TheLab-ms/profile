@@ -13,4 +13,7 @@ type Env struct {
 	SelfURL          string `split_words:"true" required:"true"`
 	StripeKey        string `split_words:"true"`
 	StripeWebhookKey string `split_words:"true"`
+
+	PaypalClientID     string `split_words:"true"`
+	PaypalClientSecret string `split_words:"true"`
 }

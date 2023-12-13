@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -343,6 +345,26 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		}
 		log.Printf("got Stripe subscription event for member %q, state=%s", customer.Email, sub.Status)
 
+		// Clean up old paypal sub if it still exists
+		if env.PaypalClientID != "" && env.PaypalClientSecret != "" {
+			user, err := kc.GetUserByEmail(r.Context(), customer.Email)
+			if err != nil {
+				log.Printf("unable to get Stripe customer object: %s", err)
+				w.WriteHeader(500)
+				return
+			}
+
+			if user.PaypalSubscriptionID != "" { // this is removed by UpdateUserStripeInfo
+				err := cancelPaypal(r.Context(), env, user)
+				if err != nil {
+					log.Printf("unable to get cancel Paypal subscription: %s", err)
+					w.WriteHeader(500)
+					return
+				}
+			}
+		}
+
+		// TODO: Handle user 404s to avoid constantly failing webhooks?
 		err = kc.UpdateUserStripeInfo(r.Context(), customer, sub)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
@@ -457,4 +479,62 @@ func getUserID(r *http.Request) string {
 func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
 	log.Printf(msg, args...)
 	http.Error(w, "system error", 500)
+}
+
+func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error {
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalSubscriptionID), nil)
+	if err != nil {
+		return err
+	}
+	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
+
+	getResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode == 404 {
+		log.Printf("not canceling paypal subscription because it doesn't exist: %s", user.PaypalSubscriptionID)
+		return nil
+	}
+	if getResp.StatusCode > 299 {
+		return fmt.Errorf("non-200 response from Paypal when getting subscription: %d", getResp.StatusCode)
+	}
+
+	current := struct {
+		Status string `json:"status"`
+	}{}
+	err = json.NewDecoder(getResp.Body).Decode(&current)
+	if err != nil {
+		return err
+	}
+	if current.Status == "CANCELLED" {
+		log.Printf("not canceling paypal subscription because it's already canceled: %s", user.PaypalSubscriptionID)
+		return nil
+	}
+
+	body := bytes.NewBufferString(`{ "reason": "migrated account" }`)
+	req, err = http.NewRequest("POST", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s/cancel", user.PaypalSubscriptionID), body)
+	if err != nil {
+		return err
+	}
+	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
+
+	postResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer postResp.Body.Close()
+
+	if postResp.StatusCode == 404 {
+		log.Printf("not canceling paypal subscription because it doesn't exist even after previous check: %s", user.PaypalSubscriptionID)
+		return nil
+	}
+	if postResp.StatusCode > 299 {
+		return fmt.Errorf("non-200 response from Paypal when canceling: %d", getResp.StatusCode)
+	}
+
+	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
+	return nil
 }

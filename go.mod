@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stripe/stripe-go/v75 v75.11.0
+	golang.org/x/time v0.5.0
 )
 
 require (
@@ -16,5 +17,4 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/time v0.5.0 // indirect
 )
