@@ -521,13 +521,13 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 		return err
 	}
 	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
+	req.Header.Set("Content-Type", "application/json")
 
 	postResp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer postResp.Body.Close()
-	postResp.Header.Set("Content-Type", "application/json")
 
 	if postResp.StatusCode == 404 {
 		log.Printf("not canceling paypal subscription because it doesn't exist even after previous check: %s", user.PaypalSubscriptionID)
