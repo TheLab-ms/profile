@@ -62,7 +62,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
-				if l := len(record); l < 11 {
+				if l := len(record); l < 18 {
 					panic("got a line without enough elements")
 				}
 
@@ -76,8 +76,9 @@ func main() {
 				}
 
 				p := payment{
-					TimeRFC3339: ts.Format(time.RFC3339),
-					timeMS:      ts.Unix(),
+					TimeRFC3339:   ts.Format(time.RFC3339),
+					TransactionID: record[17],
+					timeMS:        ts.Unix(),
 				}
 				p.Price, err = strconv.ParseFloat(strings.ReplaceAll(record[5], ",", ""), 64)
 				if err != nil {
@@ -123,7 +124,8 @@ func main() {
 }
 
 type payment struct {
-	Price       float64
-	TimeRFC3339 string
-	timeMS      int64
+	Price         float64
+	TimeRFC3339   string
+	TransactionID string
+	timeMS        int64
 }
