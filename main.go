@@ -143,12 +143,13 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 			return
 		}
 
+		etag := r.URL.Query().Get("etag")
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
 			"prices":          pc.GetPrices(),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
-			"stripePending":   user.StripeETag != r.URL.Query().Get("etag"),
+			"stripePending":   etag != "" && etag != user.StripeETag,
 		}
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
