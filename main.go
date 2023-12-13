@@ -350,7 +350,7 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		if env.PaypalClientID != "" && env.PaypalClientSecret != "" {
 			user, err := kc.GetUserByEmail(r.Context(), customer.Email)
 			if err != nil {
-				log.Printf("unable to get Stripe customer object: %s", err)
+				log.Printf("unable to get user by email address: %s", err)
 				w.WriteHeader(500)
 				return
 			}
@@ -533,7 +533,8 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 		return nil
 	}
 	if postResp.StatusCode > 299 {
-		return fmt.Errorf("non-200 response from Paypal when canceling: %d", getResp.StatusCode)
+		body, _ := io.ReadAll(postResp.Body)
+		return fmt.Errorf("non-200 response from Paypal when canceling: %d - %s", postResp.StatusCode, body)
 	}
 
 	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
