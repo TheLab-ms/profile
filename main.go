@@ -241,6 +241,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 				Metadata:           map[string]string{"etag": etag},
 				BillingCycleAnchor: calculateBillingCycleAnchor(user),
+				ProrationBehavior:  stripe.String("none"),
 			}
 		}
 		s, err := session.New(checkoutParams)
