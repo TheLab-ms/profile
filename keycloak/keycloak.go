@@ -99,26 +99,6 @@ func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int) (bool, error) {
 	return len(users) > 0, nil
 }
 
-// GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
-//
-// This is useful when avoiding backtracking for cases in which a change has been written to Stripe but
-// the corresponding webhook may not have been handled.
-func (k *Keycloak) GetUserAtETag(ctx context.Context, userID, etag string) (user *User, err error) {
-	for i := 0; i < 10; i++ {
-		user, err = k.GetUser(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		if user.StripeETag == etag || etag == "" {
-			return user, nil
-		}
-
-		time.Sleep(time.Millisecond * 100) // backoff + jitter would be nice here
-	}
-	log.Printf("timeout while waiting for Stripe webhook")
-	return user, nil // timeout
-}
-
 func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {

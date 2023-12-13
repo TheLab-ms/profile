@@ -135,7 +135,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := kc.GetUserAtETag(r.Context(), getUserID(r), r.URL.Query().Get("etag"))
+		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if err != nil {
 			renderSystemError(w, "error while fetching user: %s", err)
 			return
@@ -146,6 +146,7 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 			"user":            user,
 			"prices":          pc.GetPrices(),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
+			"stripePending":   user.StripeETag != r.URL.Query().Get("etag"),
 		}
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
@@ -274,7 +275,6 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		time.Sleep(time.Second / 2) // hack to avoid webhook race condition
 		http.Redirect(w, r, "/profile?etag="+etag, http.StatusSeeOther)
 	}
 }

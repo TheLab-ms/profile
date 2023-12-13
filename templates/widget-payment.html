@@ -4,6 +4,13 @@
     </div>
 
     <div class="panel-body">
+        {{- if .stripePending }}
+        <div class="alert alert-warning" role="alert">
+            Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
+            seconds to see it.
+        </div>
+        {{- end }}
+
         {{- if .user.ActivePayment }} {{- if .expiration }}
         <div class="alert alert-warning" role="alert">
             Your subscription has been canceled. Membership will expire at
