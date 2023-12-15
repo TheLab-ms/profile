@@ -13,10 +13,11 @@ import (
 )
 
 type Price struct {
-	ID, ProductID         string
-	Annual                bool
-	Price                 float64
-	CouponsByDiscountType map[string]string
+	ID, ProductID    string
+	Annual           bool
+	Price            float64
+	CouponIDs        map[string]string
+	CouponAmountsOff map[string]int64
 }
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
@@ -78,7 +79,8 @@ func (p *PriceCache) listPrices() []*Price {
 
 	// Coupons
 	coupons := coupon.List(&stripe.CouponListParams{})
-	coupsMap := map[string]map[string]string{} // mapping of price ID -> discount type -> coupon ID
+	coupsIDs := map[string]map[string]string{}      // mapping of price ID -> discount type -> coupon ID
+	coupsAmountOff := map[string]map[string]int64{} // mapping of price ID -> discount type -> discount
 	for coupons.Next() {
 		coup := coupons.Coupon()
 		if coup.Metadata == nil || coup.Metadata["priceID"] == "" || coup.Metadata["discountTypes"] == "" {
@@ -86,11 +88,15 @@ func (p *PriceCache) listPrices() []*Price {
 		}
 		priceID := coup.Metadata["priceID"]
 		discountTypes := strings.Split(coup.Metadata["discountTypes"], ",")
-		if coupsMap[priceID] == nil {
-			coupsMap[priceID] = map[string]string{}
+		if coupsIDs[priceID] == nil {
+			coupsIDs[priceID] = map[string]string{}
+		}
+		if coupsAmountOff[priceID] == nil {
+			coupsAmountOff[priceID] = map[string]int64{}
 		}
 		for _, dt := range discountTypes {
-			coupsMap[priceID][dt] = coup.ID
+			coupsIDs[priceID][dt] = coup.ID
+			coupsAmountOff[priceID][dt] = coup.AmountOff
 		}
 	}
 
@@ -107,9 +113,10 @@ func (p *PriceCache) listPrices() []*Price {
 			continue
 		}
 		p := &Price{
-			ID:                    price.ID,
-			CouponsByDiscountType: coupsMap[price.ID],
-			Price:                 price.UnitAmountDecimal / 100,
+			ID:               price.ID,
+			CouponIDs:        coupsIDs[price.ID],
+			CouponAmountsOff: coupsAmountOff[price.ID],
+			Price:            price.UnitAmountDecimal / 100,
 		}
 		switch price.Recurring.Interval {
 		case stripe.PriceRecurringIntervalMonth:

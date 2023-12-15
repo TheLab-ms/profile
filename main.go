@@ -147,7 +147,7 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
-			"prices":          pc.GetPrices(),
+			"prices":          calculateDiscounts(user, pc.GetPrices()),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
 			"stripePending":   etag != "" && etag != user.StripeETag,
 		}
@@ -439,13 +439,32 @@ func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.Price
 		return nil
 	}
 	for _, price := range pc.GetPrices() {
-		if price.ID == priceID && price.CouponsByDiscountType != nil && price.CouponsByDiscountType[user.DiscountType] != "" {
+		if price.ID == priceID && price.CouponIDs != nil && price.CouponIDs[user.DiscountType] != "" {
 			return []*stripe.CheckoutSessionDiscountParams{{
-				Coupon: stripe.String(price.CouponsByDiscountType[user.DiscountType]),
+				Coupon: stripe.String(price.CouponIDs[user.DiscountType]),
 			}}
 		}
 	}
 	return nil
+}
+
+func calculateDiscounts(user *keycloak.User, prices []*stripeutil.Price) []*stripeutil.Price {
+	if user.DiscountType == "" {
+		return prices
+	}
+	out := make([]*stripeutil.Price, len(prices))
+	for i, price := range prices {
+		amountOff := price.CouponAmountsOff[user.DiscountType]
+		out[i] = &stripeutil.Price{
+			ID:               price.ID,
+			ProductID:        price.ProductID,
+			Annual:           price.Annual,
+			Price:            price.Price - (float64(amountOff) / 100),
+			CouponIDs:        price.CouponIDs,
+			CouponAmountsOff: price.CouponAmountsOff,
+		}
+	}
+	return out
 }
 
 func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
