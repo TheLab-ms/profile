@@ -145,7 +145,7 @@ func (k *Keycloak) buildUser(ctx context.Context, kcuser *gocloak.User) (*User, 
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
-	user.StripeETag = safeGetAttr(kcuser, "stripeETag")
+	user.StripeETag, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeETag"), 10, 0)
 
 	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
 		s := struct {
@@ -440,7 +440,7 @@ type User struct {
 
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
-	StripeETag            string
+	StripeETag            int64
 
 	LastPaypalTransactionPrice float64
 	LastPaypalTransactionTime  time.Time

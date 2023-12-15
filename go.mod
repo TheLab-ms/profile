@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.8.0
-	github.com/google/uuid v1.3.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stripe/stripe-go/v75 v75.11.0
 	golang.org/x/time v0.5.0

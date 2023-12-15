@@ -17,7 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
@@ -144,13 +143,14 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 			return
 		}
 
-		etag := r.URL.Query().Get("etag")
+		etagString := r.URL.Query().Get("i")
+		etag, _ := strconv.ParseInt(etagString, 10, 0)
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
 			"prices":          calculateDiscounts(user, pc.GetPrices()),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
-			"stripePending":   etag != "" && etag != user.StripeETag,
+			"stripePending":   etagString != "" && user.StripeETag < etag,
 		}
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
@@ -256,10 +256,10 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			return
 		}
 
-		etag := uuid.Must(uuid.NewRandom()).String()
+		etag := strconv.FormatInt(user.StripeETag+1, 10)
 		checkoutParams := &stripe.CheckoutSessionParams{
 			CustomerEmail: &user.Email,
-			SuccessURL:    stripe.String(env.SelfURL + "/profile?etag=" + etag),
+			SuccessURL:    stripe.String(env.SelfURL + "/profile?i=" + etag),
 			CancelURL:     stripe.String(env.SelfURL + "/profile"),
 		}
 		checkoutParams.Context = r.Context()
@@ -306,7 +306,7 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		etag := uuid.Must(uuid.NewRandom()).String()
+		etag := strconv.FormatInt(user.StripeETag+1, 10)
 		_, err = subscription.Update(user.StripeSubscriptionID, &stripe.SubscriptionParams{
 			CancelAtPeriodEnd: stripe.Bool(true),
 			Metadata:          map[string]string{"etag": etag},
@@ -316,7 +316,7 @@ func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		http.Redirect(w, r, "/profile?etag="+etag, http.StatusSeeOther)
+		http.Redirect(w, r, "/profile?i="+etag, http.StatusSeeOther)
 	}
 }
 
