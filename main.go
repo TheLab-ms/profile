@@ -154,6 +154,9 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
 		}
+		if user.StripePaidUntilTime > 0 {
+			viewData["paidUntil"] = time.Unix(user.StripePaidUntilTime, 0).Format("01/02/06")
+		}
 
 		templates.ExecuteTemplate(w, "profile.html", viewData)
 	}
