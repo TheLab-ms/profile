@@ -1,21 +1,44 @@
+{{- if .user.ActivePayment }}
 <script async>
     async function populatePaymentDetails() {
+        const el = document.getElementById("periodEnd")
+        if (!el) return
+
         const resp = await fetch("/profile/paymentdetails")
         const obj = await resp.json()
-        document.getElementById("periodEnd").innerText = `Paid through ${obj["PeriodEnd"]}.`
+        el.innerText = `Paid through ${obj["PeriodEnd"]}.`
     }
     populatePaymentDetails()
 </script>
+{{- end }}
 
 <div class="panel panel-success">
     <div class="panel-heading">
         <h3 class="panel-title">Payment</h3>
     </div>
 
-
     <div class="panel-body">
+        {{- if .migratedAccount }}
+        <div class="alert alert-warning" role="alert">
+            We found a Paypal payment associated with your email address from {{
+            .user.LastPaypalTransactionTime.Format "01/02/2006" }}. Signing up here will cancel the Paypal subscription
+            while preserving the same price and interval.
+            <br><br>
+            <a href="/profile/stripe?price=paypal" role="button" class="btn btn-default">
+                Migrate Existing Membership</a>
+        </div>
+
+        {{- end }}
         <div class="well">
-            {{- if .user.ActivePayment }}
+            {{- if .stripePending }}
+            <h4>Membership Status: <span class="label label-default">Unknown</span></h4>
+            Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
+            seconds to see it.
+            {{- else if (and .user.ActivePayment .expiration) }}
+            <h4>Membership Status: <span class="label label-default">Canceled</span></h4>
+            Your subscription has been canceled. Membership will expire on {{ .expiration }}.
+            Contact TheLab's leadership if you'd like to renew before that time.
+            {{- else if .user.ActivePayment }}
             <h4>Membership Status: <span class="label label-default">Active</span></h4>
             You're signed up to pay membership dues {{ if .Annual }}yearly{{ else }}monthly{{ end }}.
             <span id="periodEnd"></span>
@@ -25,36 +48,13 @@
             {{- end }}
         </div>
 
-        {{- if .stripePending }}
-        <div class="alert alert-warning" role="alert">
-            Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
-            seconds to see it.
-        </div>
-        {{- end }}
-
-        {{- if .user.ActivePayment }} {{- if .expiration }}
-        <div class="alert alert-warning" role="alert">
-            Your subscription has been canceled. Membership will expire at
-            {{ .expiration }}.
-        </div>
-        {{- else }}
+        {{- if not .expiration }}
+        {{- if .user.ActivePayment }}
         <div class="btn-group" role="group" aria-label="...">
             <a href="/profile/stripe" role="button" class="btn btn-default">Update Payment Info</a>
             <a href="/profile/cancel" role="button" class="btn btn-default">Cancel Membership</a>
         </div>
-        {{- end }} {{- else }}
-
-        {{- if .migratedAccount }}
-        <div class="alert alert-warning" role="alert">
-            We found a Paypal payment associated with your email address from {{
-            .user.LastPaypalTransactionTime.Format "01/02/2006" }}. Your account will be prorated accordingly when
-            migrating your membership to this system.<br><br>
-            Your existing Paypal subscription will automatically be canceled after migration.
-            <br><br>
-            <a href="/profile/stripe?price=paypal" role="button" class="btn btn-default">
-                Migrate Existing Membership</a>
-        </div>
-        {{- end }}
+        {{- else }}
         <div class="btn-group" role="group" aria-label="...">
             {{- range .prices }}
             <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">
@@ -62,7 +62,7 @@
             </a>
             {{- end }}
         </div>
-
+        {{- end }}
         {{- end }}
     </div>
 </div>
