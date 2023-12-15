@@ -137,14 +137,14 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := kc.GetUser(r.Context(), getUserID(r))
+		etagString := r.URL.Query().Get("i")
+		etag, _ := strconv.ParseInt(etagString, 10, 0)
+		user, err := kc.GetUserAtETag(r.Context(), getUserID(r), etag)
 		if err != nil {
 			renderSystemError(w, "error while fetching user: %s", err)
 			return
 		}
 
-		etagString := r.URL.Query().Get("i")
-		etag, _ := strconv.ParseInt(etagString, 10, 0)
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
