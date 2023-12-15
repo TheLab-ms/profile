@@ -27,7 +27,7 @@
             {{- else if .user.ActivePayment }}
             <h4>Membership Status: <span class="label label-default">Active</span></h4>
             You're signed up to pay membership dues {{ if .Annual }}yearly{{ else }}monthly{{ end }}.
-            {{ if .user.paidUntil }} Your next payment will be due on {{ .user.paidUntil }}{{ end }}
+            {{ if .paidUntil }} Your next payment will be due on {{ .paidUntil }}{{ end }}
             <span id="periodEnd"></span>
             {{- else }}
             <h4>Membership Status: <span class="label label-default">Inactive</span></h4>
