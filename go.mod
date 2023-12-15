@@ -1,6 +1,8 @@
 module github.com/TheLab-ms/profile
 
-go 1.19
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.8.0
@@ -15,5 +17,6 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
-	golang.org/x/net v0.7.0 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
+	golang.org/x/net v0.18.0 // indirect
 )
