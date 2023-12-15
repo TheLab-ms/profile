@@ -70,6 +70,7 @@ func main() {
 
 	// Profile view and associated form POST handlers
 	http.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
+	http.HandleFunc("/profile/paymentdetails", newPaymentDetailsHandler(kc))
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
 	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
@@ -156,6 +157,40 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 		}
 
 		templates.ExecuteTemplate(w, "profile.html", viewData)
+	}
+}
+
+type paymentDetails struct {
+	PeriodEnd string
+}
+
+func newPaymentDetailsHandler(kc *keycloak.Keycloak) http.HandlerFunc {
+	rateLimiter := rate.NewLimiter(rate.Every(time.Second), 1)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := rateLimiter.Wait(r.Context()); err != nil {
+			log.Printf("rate limiter error: %s", err)
+		}
+
+		user, err := kc.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while fetching user: %s", err)
+			return
+		}
+		if user.StripeSubscriptionID == "" {
+			w.WriteHeader(404)
+			return
+		}
+
+		sub, err := subscription.Get(user.StripeSubscriptionID, &stripe.SubscriptionParams{})
+		if err != nil {
+			renderSystemError(w, "error while fetching subscription: %s", err)
+			return
+		}
+
+		resp := &paymentDetails{}
+		resp.PeriodEnd = time.Unix(sub.CurrentPeriodEnd, 0).Format("01/02/2006")
+
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 

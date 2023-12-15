@@ -1,3 +1,12 @@
+<script async>
+    async function populatePaymentDetails() {
+        const resp = await fetch("/profile/paymentdetails")
+        const obj = await resp.json()
+        document.getElementById("periodEnd").innerText = `Paid through ${obj["PeriodEnd"]}.`
+    }
+    populatePaymentDetails()
+</script>
+
 <div class="panel panel-success">
     <div class="panel-heading">
         <h3 class="panel-title">Payment</h3>
@@ -9,6 +18,7 @@
             {{- if .user.ActivePayment }}
             <h4>Membership Status: <span class="label label-default">Active</span></h4>
             You're signed up to pay membership dues {{ if .Annual }}yearly{{ else }}monthly{{ end }}.
+            <span id="periodEnd"></span>
             {{- else }}
             <h4>Membership Status: <span class="label label-default">Inactive</span></h4>
             Pick a payment schedule below to become a member.
