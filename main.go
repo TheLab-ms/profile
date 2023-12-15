@@ -239,8 +239,11 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 		} else {
 			priceID := r.URL.Query().Get("price")
 			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
-			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
 			checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
+			if checkoutParams.Discounts == nil {
+				// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
+				checkoutParams.AllowPromotionCodes = stripe.Bool(true)
+			}
 			checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
 			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 				Metadata:           map[string]string{"etag": etag},
