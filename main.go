@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -157,6 +158,8 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 	}
 }
 
+var fobUpdateMut sync.Mutex
+
 func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fobIdStr := r.FormValue("fobid")
@@ -166,8 +169,24 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		// We can't safely allow concurrent key fob ID update operations,
+		// since Keycloak doesn't support optimistic concurrency control.
+		//
+		// This is because we need to first check if a fob is already in
+		// use before assigning it. Without any concurrency controls it
+		// would be possible to use timing attacks to re-assign existing
+		// fobs to multiple accounts.
+		//
+		// So let's set a reasonable timeout to avoid one user blocking
+		// everyone else's ability to update their fob.
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
+		defer cancel()
+
+		fobUpdateMut.Lock()
+		defer fobUpdateMut.Unlock()
+
 		if fobIdStr != "" {
-			conflict, err := kc.BadgeIDInUse(r.Context(), fobID)
+			conflict, err := kc.BadgeIDInUse(ctx, fobID)
 			if err != nil {
 				renderSystemError(w, "error while checking if badge ID is in use: %s", err)
 				return
@@ -178,7 +197,7 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			}
 		}
 
-		err = kc.UpdateUserFobID(r.Context(), getUserID(r), fobID)
+		err = kc.UpdateUserFobID(ctx, getUserID(r), fobID)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
