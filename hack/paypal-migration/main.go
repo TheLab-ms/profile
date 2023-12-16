@@ -17,8 +17,8 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/TheLab-ms/profile/conf"
-	"github.com/TheLab-ms/profile/keycloak"
+	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/keycloak"
 )
 
 func main() {

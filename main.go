@@ -25,9 +25,9 @@ import (
 	"github.com/stripe/stripe-go/v75/webhook"
 	"golang.org/x/time/rate"
 
-	"github.com/TheLab-ms/profile/conf"
-	"github.com/TheLab-ms/profile/keycloak"
-	"github.com/TheLab-ms/profile/stripeutil"
+	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
 
 //go:embed assets/*

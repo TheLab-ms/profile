@@ -16,7 +16,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/stripe/stripe-go/v75"
 
-	"github.com/TheLab-ms/profile/conf"
+	"github.com/TheLab-ms/profile/internal/conf"
 )
 
 var (
@@ -463,7 +463,6 @@ type User struct {
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
 	StripeETag            int64
-	StripePaidUntilTime   int64
 
 	LastPaypalTransactionPrice float64
 	LastPaypalTransactionTime  time.Time
