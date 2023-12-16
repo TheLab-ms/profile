@@ -26,6 +26,7 @@ github.com/segmentio/ksuid
 # github.com/stripe/stripe-go/v75 v75.11.0
 ## explicit; go 1.13
 github.com/stripe/stripe-go/v75
+github.com/stripe/stripe-go/v75/billingportal/session
 github.com/stripe/stripe-go/v75/checkout/session
 github.com/stripe/stripe-go/v75/coupon
 github.com/stripe/stripe-go/v75/customer

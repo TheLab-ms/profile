@@ -19,9 +19,9 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stripe/stripe-go/v75"
+	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	"github.com/stripe/stripe-go/v75/checkout/session"
 	"github.com/stripe/stripe-go/v75/customer"
-	"github.com/stripe/stripe-go/v75/subscription"
 	"github.com/stripe/stripe-go/v75/webhook"
 	"golang.org/x/time/rate"
 
@@ -72,7 +72,6 @@ func main() {
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
 	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
-	http.HandleFunc("/profile/cancel", newCancelHandler(env, kc))
 
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
@@ -154,9 +153,6 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 		if user.StripeCancelationTime > 0 {
 			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
 		}
-		if user.StripePaidUntilTime > 0 {
-			viewData["paidUntil"] = time.Unix(user.StripePaidUntilTime, 0).Format("01/02/06")
-		}
 
 		templates.ExecuteTemplate(w, "profile.html", viewData)
 	}
@@ -223,8 +219,27 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			renderSystemError(w, "error while getting user from Keycloak: %s", err)
 			return
 		}
-
 		etag := strconv.FormatInt(user.StripeETag+1, 10)
+
+		// If there is an active payment on record for this user, start a session to manage the subscription.
+		if user.ActivePayment {
+			sessionParams := &stripe.BillingPortalSessionParams{
+				Customer:  stripe.String(user.StripeCustomerID),
+				ReturnURL: stripe.String(env.SelfURL + "/profile"),
+			}
+			sessionParams.Context = r.Context()
+
+			s, err := billingsession.New(sessionParams)
+			if err != nil {
+				renderSystemError(w, "error while creating session: %s", err)
+				return
+			}
+
+			http.Redirect(w, r, s.URL, http.StatusSeeOther)
+			return
+		}
+
+		// No active payment - sign them up!
 		checkoutParams := &stripe.CheckoutSessionParams{
 			CustomerEmail: &user.Email,
 			SuccessURL:    stripe.String(env.SelfURL + "/profile?i=" + etag),
@@ -232,29 +247,20 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 		}
 		checkoutParams.Context = r.Context()
 
-		// If there is an active payment on record for this user, start a session to update the payment credentials.
-		// Otherwise start the initial Stripe checkout session.
-		if user.ActivePayment {
-			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSetup))
-			checkoutParams.PaymentMethodTypes = stripe.StringSlice([]string{
-				"card",
-			})
-		} else {
-			priceID := r.URL.Query().Get("price")
-			checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
-			checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
-			if checkoutParams.Discounts == nil {
-				// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
-				checkoutParams.AllowPromotionCodes = stripe.Bool(true)
-			}
-			checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
-			checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
-				Metadata:           map[string]string{"etag": etag},
-				BillingCycleAnchor: calculateBillingCycleAnchor(user),
-			}
-			if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
-				checkoutParams.SubscriptionData.ProrationBehavior = stripe.String("none")
-			}
+		priceID := r.URL.Query().Get("price")
+		checkoutParams.Mode = stripe.String(string(stripe.CheckoutSessionModeSubscription))
+		checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
+		if checkoutParams.Discounts == nil {
+			// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
+			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
+		}
+		checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
+		checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
+			Metadata:           map[string]string{"etag": etag},
+			BillingCycleAnchor: calculateBillingCycleAnchor(user),
+		}
+		if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
+			checkoutParams.SubscriptionData.ProrationBehavior = stripe.String("none")
 		}
 		s, err := session.New(checkoutParams)
 		if err != nil {
@@ -263,28 +269,6 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 		}
 
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
-	}
-}
-
-func newCancelHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := kc.GetUser(r.Context(), getUserID(r))
-		if err != nil {
-			renderSystemError(w, "error while getting user from Keycloak: %s", err)
-			return
-		}
-
-		etag := strconv.FormatInt(user.StripeETag+1, 10)
-		_, err = subscription.Update(user.StripeSubscriptionID, &stripe.SubscriptionParams{
-			CancelAtPeriodEnd: stripe.Bool(true),
-			Metadata:          map[string]string{"etag": etag},
-		})
-		if err != nil {
-			renderSystemError(w, "error while canceling Stripe subscription: %s", err)
-			return
-		}
-
-		http.Redirect(w, r, "/profile?i="+etag, http.StatusSeeOther)
 	}
 }
 
@@ -387,6 +371,7 @@ func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
+// TODO: Stripe webhooks?
 func newAdminRefreshHandler(pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("explicitly refreshing caches")
@@ -401,7 +386,7 @@ func newAdminRefreshHandler(pc *stripeutil.PriceCache) http.HandlerFunc {
 func onlyLeadership(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("X-Forwarded-Groups"), "leadership") {
-			http.Error(w, "unauthorized", 403)
+			http.Error(w, "unauthorized", http.StatusForbidden)
 			return
 		}
 		next(w, r)

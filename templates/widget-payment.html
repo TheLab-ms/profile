@@ -23,11 +23,8 @@
             {{- else if (and .user.ActivePayment .expiration) }}
             <h4>Membership Status: <span class="label label-default">Canceled</span></h4>
             Your subscription has been canceled. Membership will expire on {{ .expiration }}.
-            Contact TheLab's leadership if you'd like to renew before that time.
             {{- else if .user.ActivePayment }}
             <h4>Membership Status: <span class="label label-default">Active</span></h4>
-            You're signed up to pay membership dues {{ if .Annual }}yearly{{ else }}monthly{{ end }}.
-            {{ if .paidUntil }} Your next payment will be due on {{ .paidUntil }}{{ end }}
             <span id="periodEnd"></span>
             {{- else }}
             <h4>Membership Status: <span class="label label-default">Inactive</span></h4>
@@ -35,11 +32,9 @@
             {{- end }}
         </div>
 
-        {{- if not .expiration }}
         {{- if .user.ActivePayment }}
         <div class="btn-group" role="group" aria-label="...">
-            <a href="/profile/stripe" role="button" class="btn btn-default">Update Payment Info</a>
-            <a href="/profile/cancel" role="button" class="btn btn-default">Cancel Membership</a>
+            <a href="/profile/stripe" role="button" class="btn btn-default">Manage Subscription With Stripe</a>
         </div>
         {{- else }}
         <div class="btn-group" role="group" aria-label="...">
@@ -49,7 +44,6 @@
             </a>
             {{- end }}
         </div>
-        {{- end }}
         {{- end }}
     </div>
 </div>

@@ -162,11 +162,11 @@ func (k *Keycloak) buildUser(ctx context.Context, kcuser *gocloak.User) (*User, 
 		DiscountType:           safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
 		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
+		StripeCustomerID:       safeGetAttr(kcuser, "stripeID"),
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
 	user.StripeETag, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeETag"), 10, 0)
-	user.StripePaidUntilTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripePaidUntilTime"), 10, 0)
 
 	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
 		s := struct {
@@ -301,12 +301,10 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Cu
 		attr["stripeID"] = []string{customer.ID}
 		attr["stripeSubscriptionID"] = []string{sub.ID}
 		attr["stripeCancelationTime"] = []string{strconv.FormatInt(sub.CancelAt, 10)}
-		attr["stripePaidUntilTime"] = []string{strconv.FormatInt(sub.CurrentPeriodEnd, 10)}
 	} else {
 		attr["stripeID"] = []string{""}
 		attr["stripeSubscriptionID"] = []string{""}
 		attr["stripeCancelationTime"] = []string{""}
-		attr["stripePaidUntilTime"] = []string{""}
 	}
 
 	if sub.Metadata != nil {
@@ -461,6 +459,7 @@ type User struct {
 	AdminNotes                  string // for leadership only!
 	BuildingAccessApproved      bool
 
+	StripeCustomerID      string
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
 	StripeETag            int64
