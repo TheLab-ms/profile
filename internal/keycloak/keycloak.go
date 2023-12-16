@@ -3,7 +3,6 @@ package keycloak
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -110,7 +109,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 		return nil, err
 	}
 
-	return k.buildUser(ctx, kcuser)
+	return newUser(kcuser)
 }
 
 // GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
@@ -149,61 +148,7 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 		return nil, errors.New("user not found")
 	}
 
-	return k.buildUser(ctx, kcusers[0])
-}
-
-func (k *Keycloak) buildUser(ctx context.Context, kcuser *gocloak.User) (*User, error) {
-	user := &User{
-		First:                  gocloak.PString(kcuser.FirstName),
-		Last:                   gocloak.PString(kcuser.LastName),
-		Email:                  gocloak.PString(kcuser.Email),
-		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActivePayment:          safeGetAttr(kcuser, "stripeID") != "",
-		DiscountType:           safeGetAttr(kcuser, "discountType"),
-		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
-		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
-		StripeCustomerID:       safeGetAttr(kcuser, "stripeID"),
-	}
-	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
-	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
-	user.StripeETag, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeETag"), 10, 0)
-
-	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
-		s := struct {
-			Price         float64
-			TimeRFC3339   string
-			TransactionID string
-		}{}
-		err := json.Unmarshal([]byte(js), &s)
-		if err != nil {
-			return nil, err
-		}
-
-		user.LastPaypalTransactionPrice = s.Price
-		user.PaypalSubscriptionID = s.TransactionID
-		user.LastPaypalTransactionTime, err = time.Parse(time.RFC3339, s.TimeRFC3339)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	token, err := k.GetToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting token: %w", err)
-	}
-
-	kuserlogins, err := k.Client.GetUserFederatedIdentities(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, login := range kuserlogins {
-		if *login.IdentityProvider == "discord" {
-			user.DiscordLinked = true
-		}
-	}
-
-	return user, nil
+	return newUser(kcusers[0])
 }
 
 func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int) error {
@@ -448,25 +393,6 @@ func (k *Keycloak) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 
 	log.Printf("fetched new auth token from keycloak - will expire in %d seconds", k.token.ExpiresIn)
 	return k.token, nil
-}
-
-type User struct {
-	First, Last, Email          string
-	FobID                       int
-	SignedWaiver, ActivePayment bool
-	DiscountType                string
-	DiscordLinked               bool
-	AdminNotes                  string // for leadership only!
-	BuildingAccessApproved      bool
-
-	StripeCustomerID      string
-	StripeSubscriptionID  string
-	StripeCancelationTime int64
-	StripeETag            int64
-
-	LastPaypalTransactionPrice float64
-	LastPaypalTransactionTime  time.Time
-	PaypalSubscriptionID       string
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
