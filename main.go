@@ -75,14 +75,13 @@ func main() {
 
 	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
-	http.HandleFunc("/webhooks/stripe", newStripeWebhookHandler(env, kc))
+	http.HandleFunc("/webhooks/stripe", newStripeWebhookHandler(env, kc, priceCache))
 
 	// Embed (into the compiled binary) and serve any files from the assets directory
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
 
 	// Various leadership-only admin endpoints
 	http.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
-	http.HandleFunc("/admin/refresh", onlyLeadership(newAdminRefreshHandler(priceCache)))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -295,7 +294,7 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -308,6 +307,12 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 		if err != nil {
 			log.Printf("error while constructing Stripe webhook event: %s", err)
 			w.WriteHeader(400)
+			return
+		}
+
+		if strings.HasPrefix(string(event.Type), "price.") || strings.HasPrefix(string(event.Type), "coupon.") {
+			log.Printf("refreshing Stripe caches because a webhook was received that suggests things have changed")
+			pc.Refresh()
 			return
 		}
 
@@ -368,18 +373,6 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerF
 func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		kc.DumpUsers(r.Context(), w)
-	}
-}
-
-// TODO: Stripe webhooks?
-func newAdminRefreshHandler(pc *stripeutil.PriceCache) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("explicitly refreshing caches")
-		pc.Refresh()
-
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "accepted\n")
-		w.WriteHeader(202)
 	}
 }
 
