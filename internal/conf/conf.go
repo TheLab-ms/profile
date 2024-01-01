@@ -3,7 +3,6 @@ package conf
 type Env struct {
 	KeycloakURL            string `split_words:"true" required:"true"`
 	KeycloakRealm          string `default:"master" split_words:"true"`
-	KeycloakClientID       string `split_words:"true" required:"true"`
 	KeycloakMembersGroupID string `split_words:"true" required:"true"`
 
 	MaxUnverifiedAccounts int `split_words:"true" default:"50"`

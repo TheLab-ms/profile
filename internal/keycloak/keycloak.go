@@ -69,8 +69,13 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return fmt.Errorf("creating user: %w", err)
 	}
 
+	clientID, err := os.ReadFile("/var/lib/keycloak/client-id")
+	if err != nil {
+		return fmt.Errorf("reading client id: %w", err)
+	}
+
 	resp, err := k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
-		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": k.env.KeycloakClientID}).
+		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": string(clientID)}).
 		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
 		Put(fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", k.env.KeycloakURL, k.env.KeycloakRealm, userID))
 	if err != nil {
