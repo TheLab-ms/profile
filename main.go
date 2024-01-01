@@ -84,6 +84,9 @@ func main() {
 	// Various leadership-only admin endpoints
 	http.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
 
+	// k8s readiness probe handler
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
