@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -384,7 +385,16 @@ func (k *Keycloak) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 		return k.token, nil
 	}
 
-	token, err := k.Client.LoginAdmin(ctx, k.env.KeycloakUser, k.env.KeycloakPassword, k.env.KeycloakRealm)
+	clientID, err := os.ReadFile("/var/lib/keycloak/client-id")
+	if err != nil {
+		return nil, fmt.Errorf("reading client id: %w", err)
+	}
+	clientSecret, err := os.ReadFile("/var/lib/keycloak/client-secret")
+	if err != nil {
+		return nil, fmt.Errorf("reading client secret: %w", err)
+	}
+
+	token, err := k.Client.LoginClient(ctx, string(clientID), string(clientSecret), k.env.KeycloakRealm)
 	if err != nil {
 		return nil, err
 	}
