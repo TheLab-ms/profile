@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -439,7 +440,38 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeuti
 
 func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		kc.DumpUsers(r.Context(), w)
+		users, err := kc.ListUsers(r.Context(), w)
+		if err != nil {
+			log.Printf("error while listing users: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		if r.Header.Get("Accept") == "application/json" {
+			w.Header().Add("Content-Type", "application/json")
+			enc := json.NewEncoder(w)
+			enc.SetIndent("  ", "  ")
+			enc.Encode(&users)
+			return
+		}
+
+		cw := csv.NewWriter(w)
+		cw.Write([]string{
+			"First", "Last", "Email", "Email Verified", "Waiver Signed",
+			"Stripe ID", "Stripe Subscription ID", "Discount Type", "Keyfob ID",
+			"Active Member", "Signup Timestamp", "Paypal Migration",
+		})
+
+		for _, user := range users {
+			cw.Write([]string{
+				user.First, user.Last, user.Email,
+				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
+				user.StripeCustomerID, user.StripeSubscriptionID, user.DiscountType,
+				strconv.Itoa(user.FobID), strconv.FormatBool(user.ActiveMember),
+				user.SignupTime.Format(time.RFC3339), strconv.FormatBool(user.PaypalSubscriptionID != ""),
+			})
+		}
+		cw.Flush() // avoid buffering entire response in memory
 	}
 }
 

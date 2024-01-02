@@ -2,7 +2,6 @@ package keycloak
 
 import (
 	"context"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -257,27 +256,11 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 	return nil
 }
 
-func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
+func (k *Keycloak) ListUsers(ctx context.Context, w io.Writer) ([]*ExtendedUser, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
-		return fmt.Errorf("getting token: %w", err)
+		return nil, fmt.Errorf("getting token: %w", err)
 	}
-
-	cw := csv.NewWriter(w)
-	cw.Write([]string{
-		"First",
-		"Last",
-		"Email",
-		"Email Verified",
-		"Waiver Signed",
-		"Stripe ID",
-		"Stripe Subscription ID",
-		"Discount Type",
-		"Keyfob ID",
-		"Active Member",
-		"Signup Timestamp",
-		"Paypal Migration Metadata",
-	})
 
 	var (
 		max           = 50
@@ -291,7 +274,7 @@ func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
 			First:               &first,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Unfortunately the keycloak client doesn't support the group membership endpoint.
@@ -302,7 +285,7 @@ func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
 			SetQueryParams(params).
 			Get(fmt.Sprintf("%s/admin/realms/%s/groups/%s/members", k.env.KeycloakURL, k.env.KeycloakRealm, k.env.KeycloakMembersGroupID))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if len(memberships) == 0 {
 			break
@@ -314,40 +297,29 @@ func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
 		}
 	}
 
+	parsedUsers := []*ExtendedUser{}
 	max = 50
 	first = 0
 	for {
 		users, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{Max: &max, First: &first})
 		if err != nil {
-			return fmt.Errorf("getting token: %w", err)
+			return nil, fmt.Errorf("getting token: %w", err)
 		}
 		if len(users) == 0 {
-			return nil
+			return parsedUsers, nil
 		}
 		first += len(users)
-		for _, user := range users {
-			_, member := activeMembers[gocloak.PString(user.ID)]
-			var signupTimeStr string
-			signupTime, _ := strconv.Atoi(safeGetAttr(user, "signupEpochTimeUTC"))
-			if signupTime > 0 {
-				signupTimeStr = time.Unix(int64(signupTime), 0).Local().Format(time.RFC3339)
+		for _, kcuser := range users {
+			user, err := newUser(kcuser)
+			if err != nil {
+				log.Printf("error while parsing user %q in list: %s", gocloak.PString(kcuser.ID), err)
+				continue
 			}
-			cw.Write([]string{
-				gocloak.PString(user.FirstName),
-				gocloak.PString(user.LastName),
-				gocloak.PString(user.Email),
-				strconv.FormatBool(gocloak.PBool(user.EmailVerified)),
-				strconv.FormatBool(safeGetAttr(user, "waiverState") == "Signed"),
-				safeGetAttr(user, "stripeID"),
-				safeGetAttr(user, "stripeSubscriptionID"),
-				safeGetAttr(user, "discountType"),
-				safeGetAttr(user, "keyfobID"),
-				strconv.FormatBool(member),
-				signupTimeStr,
-				safeGetAttr(user, "paypalMigrationMetadata"),
-			})
+
+			_, member := activeMembers[gocloak.PString(kcuser.ID)]
+			fullUser := &ExtendedUser{User: user, ActiveMember: member}
+			parsedUsers = append(parsedUsers, fullUser)
 		}
-		cw.Flush() // avoid buffering entire response in memory
 	}
 }
 
