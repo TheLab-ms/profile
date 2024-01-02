@@ -18,4 +18,8 @@ type Env struct {
 	EventPsqlUsername string `split_words:"true"`
 	EventPsqlPassword string `split_words:"true"`
 	EventBufferLength int    `split_words:"true" default:"50"`
+
+	// These should be loaded from the env if not set
+	KeycloakClientID     string `split_words:"true"`
+	KeycloakClientSecret string `split_words:"true"`
 }

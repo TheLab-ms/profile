@@ -69,9 +69,9 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return fmt.Errorf("creating user: %w", err)
 	}
 
-	clientID, err := os.ReadFile("/var/lib/keycloak/client-id")
+	clientID, err := k.getClientID()
 	if err != nil {
-		return fmt.Errorf("reading client id: %w", err)
+		return err
 	}
 
 	resp, err := k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
@@ -173,27 +173,16 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, user *User, fobID int) e
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
-func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) error {
+func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, user *User) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcusers, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
-		Email: &email,
-	})
-	if err != nil {
-		return fmt.Errorf("getting current user: %w", err)
-	}
-	if len(kcusers) == 0 {
-		return errors.New("user not found")
-	}
-	kcuser := kcusers[0]
-
-	attr := safeGetAttrs(kcuser)
+	attr := safeGetAttrs(user.keycloakObject)
 	attr["waiverState"] = []string{"Signed"}
 
-	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
 func (k *Keycloak) UpdateUserName(ctx context.Context, user *User, first, last string) error {
@@ -369,13 +358,13 @@ func (k *Keycloak) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 		return k.token, nil
 	}
 
-	clientID, err := os.ReadFile("/var/lib/keycloak/client-id")
+	clientID, err := k.getClientID()
 	if err != nil {
-		return nil, fmt.Errorf("reading client id: %w", err)
+		return nil, err
 	}
-	clientSecret, err := os.ReadFile("/var/lib/keycloak/client-secret")
+	clientSecret, err := k.getClientSecret()
 	if err != nil {
-		return nil, fmt.Errorf("reading client secret: %w", err)
+		return nil, err
 	}
 
 	token, err := k.Client.LoginClient(ctx, string(clientID), string(clientSecret), k.env.KeycloakRealm)
@@ -389,6 +378,28 @@ func (k *Keycloak) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 	return k.token, nil
 }
 
+func (k *Keycloak) getClientID() (string, error) {
+	if len(k.env.KeycloakClientID) > 0 {
+		return k.env.KeycloakClientID, nil
+	}
+	clientID, err := os.ReadFile("/var/lib/keycloak/client-id")
+	if err != nil {
+		return "", fmt.Errorf("reading client id from disk: %w", err)
+	}
+	return string(clientID), nil
+}
+
+func (k *Keycloak) getClientSecret() (string, error) {
+	if len(k.env.KeycloakClientSecret) > 0 {
+		return k.env.KeycloakClientSecret, nil
+	}
+	clientSecret, err := os.ReadFile("/var/lib/keycloak/client-secret")
+	if err != nil {
+		return "", fmt.Errorf("reading client secret from disk: %w", err)
+	}
+	return string(clientSecret), nil
+}
+
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
 	if kcuser.Attributes != nil {
 		return *kcuser.Attributes
@@ -396,6 +407,7 @@ func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
 	attr := map[string][]string{}
 	kcuser.Attributes = &attr
 	return attr
+
 }
 
 func safeGetAttr(kcuser *gocloak.User, key string) string {

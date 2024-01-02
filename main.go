@@ -119,6 +119,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		// TODO: Limit concurrency to avoid attack vector
 		err := kc.RegisterUser(r.Context(), email)
 
 		// Limit the number of accounts with unconfirmed email addresses to avoid spam/abuse
@@ -339,9 +340,16 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			w.WriteHeader(400)
 			return
 		}
-
 		log.Printf("got docuseal webhook for user %s", body.Data.Email)
-		err := kc.UpdateUserWaiverState(r.Context(), body.Data.Email)
+
+		user, err := kc.GetUserByEmail(r.Context(), body.Data.Email)
+		if err != nil {
+			log.Printf("unable to get user by email address: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		err = kc.UpdateUserWaiverState(r.Context(), user)
 		if err != nil {
 			log.Printf("error while updating user's waiver state: %s", err)
 			w.WriteHeader(500)
