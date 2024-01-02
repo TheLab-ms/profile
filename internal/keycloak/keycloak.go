@@ -276,6 +276,7 @@ func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
 		"Keyfob ID",
 		"Active Member",
 		"Signup Timestamp",
+		"Paypal Migration Metadata",
 	})
 
 	var (
@@ -343,6 +344,7 @@ func (k *Keycloak) DumpUsers(ctx context.Context, w io.Writer) error {
 				safeGetAttr(user, "keyfobID"),
 				strconv.FormatBool(member),
 				signupTimeStr,
+				safeGetAttr(user, "paypalMigrationMetadata"),
 			})
 		}
 		cw.Flush() // avoid buffering entire response in memory
