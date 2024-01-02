@@ -27,6 +27,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/eventing"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
@@ -39,6 +40,8 @@ var rawTemplates embed.FS
 
 var templates *template.Template
 
+var events *eventing.Sink
+
 func init() {
 	// Parse the embedded templates once during initialization
 	var err error
@@ -50,10 +53,16 @@ func init() {
 
 func main() {
 	env := &conf.Env{}
-	if err := envconfig.Process("", env); err != nil {
+	err := envconfig.Process("", env)
+	if err != nil {
 		log.Fatal(err)
 	}
 	stripe.Key = env.StripeKey
+
+	events, err = eventing.NewSink(env)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	kc := keycloak.New(env)
 	priceCache := &stripeutil.PriceCache{}
@@ -132,6 +141,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		events.Publish(email, "Signup", "user created an account")
 		templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
@@ -188,6 +198,17 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		fobUpdateMut.Lock()
 		defer fobUpdateMut.Unlock()
 
+		user, err := kc.GetUser(ctx, getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+		if user.FobID == fobID {
+			// fob didn't change
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+
 		if fobIdStr != "" {
 			conflict, err := kc.BadgeIDInUse(ctx, fobID)
 			if err != nil {
@@ -200,12 +221,13 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			}
 		}
 
-		err = kc.UpdateUserFobID(ctx, getUserID(r), fobID)
+		err = kc.UpdateUserFobID(ctx, user, fobID)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
 		}
 
+		events.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -223,12 +245,19 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		err := kc.UpdateUserName(r.Context(), getUserID(r), first, last)
+		user, err := kc.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		err = kc.UpdateUserName(r.Context(), user, first, last)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
 		}
 
+		events.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -293,6 +322,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			return
 		}
 
+		events.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
 	}
 }
@@ -317,6 +347,8 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			w.WriteHeader(500)
 			return
 		}
+
+		events.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
 	}
 }
 
@@ -367,15 +399,15 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeuti
 		}
 		log.Printf("got Stripe subscription event for member %q, state=%s", customer.Email, sub.Status)
 
+		user, err := kc.GetUserByEmail(r.Context(), customer.Email)
+		if err != nil {
+			log.Printf("unable to get user by email address: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
 		// Clean up old paypal sub if it still exists
 		if env.PaypalClientID != "" && env.PaypalClientSecret != "" {
-			user, err := kc.GetUserByEmail(r.Context(), customer.Email)
-			if err != nil {
-				log.Printf("unable to get user by email address: %s", err)
-				w.WriteHeader(500)
-				return
-			}
-
 			if user.PaypalSubscriptionID != "" { // this is removed by UpdateUserStripeInfo
 				err := cancelPaypal(r.Context(), env, user)
 				if err != nil {
@@ -386,12 +418,14 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeuti
 			}
 		}
 
-		err = kc.UpdateUserStripeInfo(r.Context(), customer, sub)
+		err = kc.UpdateUserStripeInfo(r.Context(), user, customer, sub)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
 			w.WriteHeader(500)
 			return
 		}
+
+		events.Publish(user.Email, "FinishedStripeCheckout", "Stripe checkout session completed")
 	}
 }
 
@@ -482,5 +516,6 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 	}
 
 	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
+	events.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
 	return nil
 }

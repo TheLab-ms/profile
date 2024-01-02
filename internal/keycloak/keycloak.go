@@ -157,25 +157,20 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 	return newUser(kcusers[0])
 }
 
-func (k *Keycloak) UpdateUserFobID(ctx context.Context, userID string, fobID int) error {
+func (k *Keycloak) UpdateUserFobID(ctx context.Context, user *User, fobID int) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser, err := k.Client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
-	if err != nil {
-		return fmt.Errorf("getting current user: %w", err)
-	}
-
-	attr := safeGetAttrs(kcuser)
+	attr := safeGetAttrs(user.keycloakObject)
 	if fobID == 0 {
 		attr["keyfobID"] = []string{""}
 	} else {
 		attr["keyfobID"] = []string{strconv.Itoa(fobID)}
 	}
 
-	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
 func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) error {
@@ -201,46 +196,30 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, email string) erro
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
 }
 
-func (k *Keycloak) UpdateUserName(ctx context.Context, userID, first, last string) error {
+func (k *Keycloak) UpdateUserName(ctx context.Context, user *User, first, last string) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser, err := k.Client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
-	if err != nil {
-		return fmt.Errorf("getting current user: %w", err)
-	}
-
-	kcuser.FirstName = &first
-	kcuser.LastName = &last
-
-	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
+	user.keycloakObject.FirstName = &first
+	user.keycloakObject.LastName = &last
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
-func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, customer *stripe.Customer, sub *stripe.Subscription) error {
+func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, customer *stripe.Customer, sub *stripe.Subscription) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcusers, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
-		Email: &customer.Email,
-	})
-	if err != nil {
-		return fmt.Errorf("getting current user: %w", err)
-	}
-	if len(kcusers) == 0 {
-		return errors.New("user not found")
-	}
-	kcuser := kcusers[0]
-
+	kcuser := user.keycloakObject
 	attr := safeGetAttrs(kcuser)
 	active := sub.Status == stripe.SubscriptionStatusActive
 
 	// Don't de-activate accounts when we receive cancelation webhooks for a subscription that is not currently in use.
 	// This shouldn't be possible for any accounts other than tests.
-	if !active && !strings.EqualFold(safeGetAttr(kcuser, "stripeSubscriptionID"), sub.ID) {
+	if !active && !strings.EqualFold(user.StripeSubscriptionID, sub.ID) {
 		log.Printf("dropping cancelation webhook for user %s because the subscription ID doesn't match the one in keycloak", *kcuser.Email)
 		return nil
 	}

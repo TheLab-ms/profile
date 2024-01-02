@@ -24,6 +24,8 @@ type User struct {
 	LastPaypalTransactionPrice float64
 	LastPaypalTransactionTime  time.Time
 	PaypalSubscriptionID       string
+
+	keycloakObject *gocloak.User
 }
 
 func newUser(kcuser *gocloak.User) (*User, error) {
@@ -37,6 +39,7 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
 		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
 		StripeCustomerID:       safeGetAttr(kcuser, "stripeID"),
+		keycloakObject:         kcuser,
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)

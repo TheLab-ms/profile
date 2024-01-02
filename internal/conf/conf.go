@@ -13,4 +13,9 @@ type Env struct {
 
 	PaypalClientID     string `split_words:"true"`
 	PaypalClientSecret string `split_words:"true"`
+
+	EventPsqlAddr     string `split_words:"true"`
+	EventPsqlUsername string `split_words:"true"`
+	EventPsqlPassword string `split_words:"true"`
+	EventBufferLength int    `split_words:"true" default:"50"`
 }
