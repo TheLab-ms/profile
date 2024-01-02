@@ -12,7 +12,7 @@ import (
 
 const migration = `
 CREATE TABLE IF NOT EXISTS profile_events (
-	id integer primary key,
+	id serial primary key,
 	time timestamp not null,
 	email text not null,
 	reason text not null,
