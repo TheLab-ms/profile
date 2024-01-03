@@ -44,8 +44,9 @@ jobs:
       - uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
+          IMAGE: ${{needs.push.outputs.imageFullName}}
         with:
-          args: set image deployment/profile-staging svc=${{needs.push.outputs.imageFullName}}
+          args: set image deployment/profile-staging svc=$IMAGE
 
   deploy:
     name: Deploy
@@ -55,5 +56,6 @@ jobs:
       - uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
+          IMAGE: ${{needs.push.outputs.imageFullName}}
         with:
-          args: set image deployment/profile svc=${{needs.push.outputs.imageFullName}}
+          args: set image deployment/profile svc=$IMAGE
