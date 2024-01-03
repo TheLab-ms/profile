@@ -10,6 +10,8 @@ import (
 	"github.com/TheLab-ms/profile/internal/conf"
 )
 
+var DefaultSink *Sink
+
 const migration = `
 CREATE TABLE IF NOT EXISTS profile_events (
 	id serial primary key,

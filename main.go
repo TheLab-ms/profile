@@ -60,7 +60,7 @@ func main() {
 	}
 	stripe.Key = env.StripeKey
 
-	events, err = eventing.NewSink(env)
+	eventing.DefaultSink, err = eventing.NewSink(env)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -253,6 +253,11 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
+		if user.First == first && user.Last == last {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return // nothing changed
+		}
+
 		err = kc.UpdateUserName(r.Context(), user, first, last)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
@@ -433,8 +438,6 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeuti
 			w.WriteHeader(500)
 			return
 		}
-
-		events.Publish(user.Email, "FinishedStripeCheckout", "Stripe checkout session completed")
 	}
 }
 
