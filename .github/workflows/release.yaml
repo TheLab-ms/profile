@@ -1,0 +1,57 @@
+name: Release
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Test
+        run: go test -v ./...
+
+  push:
+    name: Push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out code
+    
+      - uses: mr-smithers-excellent/docker-build-push@v6
+        name: Build and Push Image
+        with:
+          image: profile
+          registry: ghcr.io
+          dockerfile: Dockerfile
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  deployStg:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    needs: push
+    steps:
+      - uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
+        with:
+          args: set image deployment/profile-staging svc=${{needs.push.outputs.imageFullName}}
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: push
+    steps:
+      - uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
+        with:
+          args: set image deployment/profile svc=${{needs.push.outputs.imageFullName}}
