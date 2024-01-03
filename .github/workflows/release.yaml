@@ -46,10 +46,10 @@ jobs:
       - name: "Patch Image"
         run: |
           echo $KUBE_CONFIG | base64 -d > kc.yaml
-          kubectl --kubeconfig kc.yaml set image deployment/profile-staging svc=$IMAGE
+          kubectl --kubeconfig kc.yaml set image deployment/profile-staging svc=$NEW_IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
-          IMAGE: ${{needs.push.outputs.imageFullName}}
+          NEW_IMAGE: ${{ needs.push.outputs.imageFullName }}
 
   deploy:
     name: Deploy
@@ -61,7 +61,7 @@ jobs:
       - name: "Patch Image"
         run: |
           echo $KUBE_CONFIG | base64 -d > kc.yaml
-          kubectl --kubeconfig kc.yaml set image deployment/profile svc=$IMAGE
+          kubectl --kubeconfig kc.yaml set image deployment/profile svc=$NEW_IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
-          IMAGE: ${{needs.push.outputs.imageFullName}}
+          NEW_IMAGE: ${{ needs.push.outputs.imageFullName }}
