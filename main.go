@@ -41,8 +41,6 @@ var rawTemplates embed.FS
 
 var templates *template.Template
 
-var events *eventing.Sink
-
 func init() {
 	// Parse the embedded templates once during initialization
 	var err error
@@ -143,7 +141,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		events.Publish(email, "Signup", "user created an account")
+		eventing.DefaultSink.Publish(email, "Signup", "user created an account")
 		templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
@@ -229,7 +227,7 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		events.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
+		eventing.DefaultSink.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -264,7 +262,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		events.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
+		eventing.DefaultSink.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -329,7 +327,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			return
 		}
 
-		events.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
+		eventing.DefaultSink.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
 	}
 }
@@ -362,7 +360,7 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		events.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
+		eventing.DefaultSink.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
 	}
 }
 
@@ -559,6 +557,6 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 	}
 
 	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
-	events.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
+	eventing.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
 	return nil
 }

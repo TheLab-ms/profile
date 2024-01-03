@@ -69,7 +69,7 @@ func NewSink(env *conf.Env) (*Sink, error) {
 }
 
 func (s *Sink) Publish(email, reason, templ string, args ...any) {
-	if s.buffer == nil {
+	if s == nil || s.buffer == nil {
 		return
 	}
 	s.buffer <- &event{
