@@ -57,7 +57,9 @@ jobs:
       image: docker.io/bitnami/kubectl:1.29.0
     steps:
       - name: "Patch Image"
-        run: kubectl set image deployment/profile svc=$IMAGE
+        run: |
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          kubectl set image deployment/profile svc=$IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
           IMAGE: ${{needs.push.outputs.imageFullName}}
