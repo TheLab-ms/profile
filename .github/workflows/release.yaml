@@ -49,7 +49,7 @@ jobs:
           kubectl --kubeconfig kc.yaml set image deployment/profile-staging svc=$NEW_IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
-          NEW_IMAGE: ${{ needs.push.outputs.imageFullName }}
+          NEW_IMAGE: ${{ needs.push.outputs.tags }}
 
   deploy:
     name: Deploy
@@ -64,4 +64,4 @@ jobs:
           kubectl --kubeconfig kc.yaml set image deployment/profile svc=$NEW_IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
-          NEW_IMAGE: ${{ needs.push.outputs.imageFullName }}
+          NEW_IMAGE: ${{ needs.push.outputs.tags }}
