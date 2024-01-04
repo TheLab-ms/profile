@@ -26,15 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Check out code
-    
-      - uses: mr-smithers-excellent/docker-build-push@v6
-        name: Build and Push Image
+
+      - name: Build and Push
+        uses: docker/build-push-action@v4
         with:
-          image: profile
-          registry: ghcr.io
-          dockerfile: Dockerfile
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          context: .
+          push: true
+          tags: |
+            ${{ steps.commit.outputs.short }}
 
   deployStg:
     name: Deploy Staging
