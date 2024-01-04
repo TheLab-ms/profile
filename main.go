@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stripe/stripe-go/v75"
 	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	"github.com/stripe/stripe-go/v75/checkout/session"
@@ -37,7 +39,24 @@ var rawTemplates embed.FS
 
 var templates *template.Template
 
+var (
+	inFlightGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "in_flight_requests",
+		Help: "A gauge of requests currently being served",
+	})
+
+	requestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "requests_total",
+			Help: "HTTP request counter by code and method",
+		},
+		[]string{"code", "method"},
+	)
+)
+
 func init() {
+	prometheus.MustRegister(inFlightGauge, requestCounter)
+
 	// Parse the embedded templates once during initialization
 	var err error
 	templates, err = template.ParseFS(rawTemplates, "templates/*")
@@ -65,23 +84,29 @@ func main() {
 	priceCache := &payment.PriceCache{}
 	priceCache.Start()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/profile", http.StatusTemporaryRedirect)
 	})
 
-	http.HandleFunc("/signup", newSignupViewHandler(kc))
-	http.HandleFunc("/signup/register", newRegistrationFormHandler(kc))
-	http.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
-	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
-	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
-	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
-	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
-	http.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(env, kc, priceCache))
-	http.Handle("/assets/", http.FileServer(http.FS(assets)))
-	http.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("/signup", newSignupViewHandler(kc))
+	mux.HandleFunc("/signup/register", newRegistrationFormHandler(kc))
+	mux.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
+	mux.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
+	mux.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
+	mux.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
+	mux.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
+	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(env, kc, priceCache))
+	mux.Handle("/assets/", http.FileServer(http.FS(assets)))
+	mux.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	go func() {
+		log.Fatal(http.ListenAndServe(":8081", promhttp.Handler()))
+	}()
+
+	log.Fatal(http.ListenAndServe(":8080", promhttp.InstrumentHandlerInFlight(inFlightGauge,
+		promhttp.InstrumentHandlerCounter(requestCounter, mux))))
 }
 
 func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
