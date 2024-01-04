@@ -93,7 +93,7 @@ func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 
 func (s *ReportingSink) LastMetricTime() (time.Time, error) {
 	t := time.Time{}
-	return t, s.db.QueryRow("SELECT MAX(time) AS time FROM profile_metrics").Scan(&t)
+	return t, s.db.QueryRow("SELECT COALESCE(MAX(time), 0) AS time FROM profile_metrics").Scan(&t)
 }
 
 func (s *ReportingSink) WriteMetrics(counters *Counters) error {
