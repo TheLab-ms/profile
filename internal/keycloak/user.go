@@ -9,13 +9,13 @@ import (
 )
 
 type User struct {
-	First, Last, Email                         string
-	FobID                                      int
-	EmailVerified, SignedWaiver, ActivePayment bool
-	DiscountType                               string
-	AdminNotes                                 string // for leadership only!
-	BuildingAccessApproved                     bool
-	SignupTime                                 time.Time
+	First, Last, Email                        string
+	FobID                                     int
+	EmailVerified, SignedWaiver, ActiveMember bool
+	DiscountType                              string
+	AdminNotes                                string // for leadership only!
+	BuildingAccessApproved                    bool
+	SignupTime                                time.Time
 
 	StripeCustomerID      string
 	StripeSubscriptionID  string
@@ -36,7 +36,7 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 		Email:                  gocloak.PString(kcuser.Email),
 		EmailVerified:          *gocloak.BoolP(*kcuser.EmailVerified),
 		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActivePayment:          safeGetAttr(kcuser, "stripeID") != "",
+		ActiveMember:           safeGetAttr(kcuser, "stripeID") != "" || safeGetAttr(kcuser, "nonBillable") != "",
 		DiscountType:           safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
 		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",

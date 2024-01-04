@@ -279,7 +279,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 		etag := strconv.FormatInt(user.StripeETag+1, 10)
 
 		// If there is an active payment on record for this user, start a session to manage the subscription.
-		if user.ActivePayment {
+		if user.ActiveMember {
 			sessionParams := &stripe.BillingPortalSessionParams{
 				Customer:  stripe.String(user.StripeCustomerID),
 				ReturnURL: stripe.String(env.SelfURL + "/profile"),

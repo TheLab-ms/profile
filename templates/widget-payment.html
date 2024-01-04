@@ -20,10 +20,10 @@
             <h4>Membership Status: <span class="label label-default">Unknown</span></h4>
             Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
             seconds to see it.
-            {{- else if (and .user.ActivePayment .expiration) }}
+            {{- else if (and .user.ActiveMember .expiration) }}
             <h4>Membership Status: <span class="label label-default">Canceled</span></h4>
             Your subscription has been canceled. Membership will expire on {{ .expiration }}.
-            {{- else if .user.ActivePayment }}
+            {{- else if .user.ActiveMember }}
             <h4>Membership Status: <span class="label label-default">Active</span></h4>
             <span id="periodEnd"></span>
             {{- else }}
@@ -32,7 +32,7 @@
             {{- end }}
         </div>
 
-        {{- if .user.ActivePayment }}
+        {{- if .user.ActiveMember }}
         <div class="btn-group" role="group" aria-label="...">
             <a href="/profile/stripe" role="button" class="btn btn-default">Manage Subscription With Stripe</a>
         </div>
