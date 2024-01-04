@@ -16,7 +16,7 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile/internal/conf"
-	"github.com/TheLab-ms/profile/internal/eventing"
+	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
 var (
@@ -222,9 +222,9 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 		attr["stripeCancelationTime"] = []string{strconv.FormatInt(sub.CancelAt, 10)}
 
 		if customer.ID != user.StripeCustomerID || sub.ID != user.StripeSubscriptionID {
-			eventing.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
+			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
 		} else if user.StripeCancelationTime == 0 && sub.CancelAt > 0 {
-			eventing.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
+			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
 		}
 	} else {
 		attr["stripeID"] = []string{""}
@@ -251,11 +251,11 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 	// Users should only be in the members group when their Stripe subscription is active
 	inGroup := len(groups) > 0
 	if !inGroup && active {
-		eventing.DefaultSink.Publish(user.Email, "MembershipActivated", "A change in payment state caused the user's membership to be enabled")
+		reporting.DefaultSink.Publish(user.Email, "MembershipActivated", "A change in payment state caused the user's membership to be enabled")
 		err = k.Client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
 	}
 	if inGroup && !active {
-		eventing.DefaultSink.Publish(user.Email, "MembershipDeactivated", "A change in payment state caused the user's membership to be disabled")
+		reporting.DefaultSink.Publish(user.Email, "MembershipDeactivated", "A change in payment state caused the user's membership to be disabled")
 		err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
 	}
 	if err != nil {

@@ -28,8 +28,8 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/internal/conf"
-	"github.com/TheLab-ms/profile/internal/eventing"
 	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/reporting"
 	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
 
@@ -58,7 +58,7 @@ func main() {
 	}
 	stripe.Key = env.StripeKey
 
-	eventing.DefaultSink, err = eventing.NewSink(env)
+	reporting.DefaultSink, err = reporting.NewSink(env)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		eventing.DefaultSink.Publish(email, "Signup", "user created an account")
+		reporting.DefaultSink.Publish(email, "Signup", "user created an account")
 		templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
@@ -227,7 +227,7 @@ func newKeyfobFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		eventing.DefaultSink.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
+		reporting.DefaultSink.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -262,7 +262,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		eventing.DefaultSink.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
+		reporting.DefaultSink.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -327,7 +327,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 			return
 		}
 
-		eventing.DefaultSink.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
+		reporting.DefaultSink.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
 	}
 }
@@ -360,7 +360,7 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		eventing.DefaultSink.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
+		reporting.DefaultSink.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
 	}
 }
 
@@ -557,6 +557,6 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 	}
 
 	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
-	eventing.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
+	reporting.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
 	return nil
 }

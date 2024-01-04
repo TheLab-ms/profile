@@ -1,4 +1,4 @@
-package eventing
+package reporting
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/conf"
 )
 
-var DefaultSink *Sink
+var DefaultSink *ReportingSink
 
 const migration = `
 CREATE TABLE IF NOT EXISTS profile_events (
@@ -24,12 +24,12 @@ CREATE TABLE IF NOT EXISTS profile_events (
 CREATE INDEX IF NOT EXISTS idx_profile_events_time ON profile_events (time);
 `
 
-type Sink struct {
+type ReportingSink struct {
 	buffer chan *event
 }
 
-func NewSink(env *conf.Env) (*Sink, error) {
-	s := &Sink{}
+func NewSink(env *conf.Env) (*ReportingSink, error) {
+	s := &ReportingSink{}
 	if env.EventPsqlAddr == "" {
 		return s, nil
 	}
@@ -68,7 +68,7 @@ func NewSink(env *conf.Env) (*Sink, error) {
 	return s, nil
 }
 
-func (s *Sink) Publish(email, reason, templ string, args ...any) {
+func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 	if s == nil || s.buffer == nil {
 		return
 	}
