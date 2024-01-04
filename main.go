@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/mail"
@@ -23,8 +20,6 @@ import (
 	"github.com/stripe/stripe-go/v75"
 	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	"github.com/stripe/stripe-go/v75/checkout/session"
-	"github.com/stripe/stripe-go/v75/customer"
-	"github.com/stripe/stripe-go/v75/webhook"
 	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/internal/conf"
@@ -70,32 +65,20 @@ func main() {
 	priceCache := &payment.PriceCache{}
 	priceCache.Start()
 
-	// Redirect from / to /profile
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/profile", http.StatusTemporaryRedirect)
 	})
 
-	// Signup view and registration POST handler
 	http.HandleFunc("/signup", newSignupViewHandler(kc))
 	http.HandleFunc("/signup/register", newRegistrationFormHandler(kc))
-
-	// Profile view and associated form POST handlers
 	http.HandleFunc("/profile", newProfileViewHandler(kc, priceCache))
 	http.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	http.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
 	http.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
-
-	// Webhooks
 	http.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
-	http.HandleFunc("/webhooks/stripe", newStripeWebhookHandler(env, kc, priceCache))
-
-	// Embed (into the compiled binary) and serve any files from the assets directory
+	http.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(env, kc, priceCache))
 	http.Handle("/assets/", http.FileServer(http.FS(assets)))
-
-	// Various leadership-only admin endpoints
 	http.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
-
-	// k8s readiness probe handler
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -369,81 +352,6 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *payment.PriceCache) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		payload, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("error while reading Stripe webhook body: %s", err)
-			w.WriteHeader(503)
-			return
-		}
-
-		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), env.StripeWebhookKey)
-		if err != nil {
-			log.Printf("error while constructing Stripe webhook event: %s", err)
-			w.WriteHeader(400)
-			return
-		}
-
-		if strings.HasPrefix(string(event.Type), "price.") || strings.HasPrefix(string(event.Type), "coupon.") {
-			log.Printf("refreshing Stripe caches because a webhook was received that suggests things have changed")
-			pc.Refresh()
-			return
-		}
-
-		switch event.Type {
-		case "customer.subscription.deleted":
-		case "customer.subscription.updated":
-		case "customer.subscription.created":
-		default:
-			log.Printf("unhandled Stripe webhook event type: %s", event.Type)
-			return
-		}
-
-		sub := &stripe.Subscription{}
-		err = json.Unmarshal(event.Data.Raw, sub)
-		if err != nil {
-			log.Printf("got invalid Stripe webhook event: %s", err)
-			w.WriteHeader(400)
-			return
-		}
-
-		customer, err := customer.Get(sub.Customer.ID, &stripe.CustomerParams{})
-		if err != nil {
-			log.Printf("unable to get Stripe customer object: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-		log.Printf("got Stripe subscription event for member %q, state=%s", customer.Email, sub.Status)
-
-		user, err := kc.GetUserByEmail(r.Context(), customer.Email)
-		if err != nil {
-			log.Printf("unable to get user by email address: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
-		// Clean up old paypal sub if it still exists
-		if env.PaypalClientID != "" && env.PaypalClientSecret != "" {
-			if user.PaypalSubscriptionID != "" { // this is removed by UpdateUserStripeInfo
-				err := cancelPaypal(r.Context(), env, user)
-				if err != nil {
-					log.Printf("unable to get cancel Paypal subscription: %s", err)
-					w.WriteHeader(500)
-					return
-				}
-			}
-		}
-
-		err = kc.UpdateUserStripeInfo(r.Context(), user, customer, sub)
-		if err != nil {
-			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-	}
-}
-
 func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := kc.ListUsers(r.Context())
@@ -503,65 +411,4 @@ func getUserID(r *http.Request) string {
 func renderSystemError(w http.ResponseWriter, msg string, args ...any) {
 	log.Printf(msg, args...)
 	http.Error(w, "system error", 500)
-}
-
-func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error {
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalSubscriptionID), nil)
-	if err != nil {
-		return err
-	}
-	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
-
-	getResp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer getResp.Body.Close()
-
-	if getResp.StatusCode == 404 {
-		log.Printf("not canceling paypal subscription because it doesn't exist: %s", user.PaypalSubscriptionID)
-		return nil
-	}
-	if getResp.StatusCode > 299 {
-		return fmt.Errorf("non-200 response from Paypal when getting subscription: %d", getResp.StatusCode)
-	}
-
-	current := struct {
-		Status string `json:"status"`
-	}{}
-	err = json.NewDecoder(getResp.Body).Decode(&current)
-	if err != nil {
-		return err
-	}
-	if current.Status == "CANCELLED" {
-		log.Printf("not canceling paypal subscription because it's already canceled: %s", user.PaypalSubscriptionID)
-		return nil
-	}
-
-	body := bytes.NewBufferString(`{ "reason": "migrated account" }`)
-	req, err = http.NewRequest("POST", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s/cancel", user.PaypalSubscriptionID), body)
-	if err != nil {
-		return err
-	}
-	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
-	req.Header.Set("Content-Type", "application/json")
-
-	postResp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer postResp.Body.Close()
-
-	if postResp.StatusCode == 404 {
-		log.Printf("not canceling paypal subscription because it doesn't exist even after previous check: %s", user.PaypalSubscriptionID)
-		return nil
-	}
-	if postResp.StatusCode > 299 {
-		body, _ := io.ReadAll(postResp.Body)
-		return fmt.Errorf("non-200 response from Paypal when canceling: %d - %s", postResp.StatusCode, body)
-	}
-
-	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
-	reporting.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
-	return nil
 }
