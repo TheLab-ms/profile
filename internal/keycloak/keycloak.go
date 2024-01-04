@@ -383,6 +383,10 @@ func (k *Keycloak) getClientSecret() (string, error) {
 }
 
 func (k *Keycloak) RunReportingLoop() {
+	if !reporting.DefaultSink.Enabled() {
+		return // no db to report to
+	}
+
 	const interval = time.Hour * 24
 	const retryInterval = time.Second * 10
 	go func() {

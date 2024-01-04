@@ -101,6 +101,8 @@ func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 	return err
 }
 
+func (s *ReportingSink) Enabled() bool { return s != nil && s.db != nil }
+
 type Counters struct {
 	ActiveMembers   int64
 	InactiveMembers int64
