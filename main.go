@@ -108,6 +108,7 @@ func newSignupViewHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 
 func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	rateLimiter := rate.NewLimiter(1, 2)
+	lock := sync.Mutex{}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := rateLimiter.Wait(r.Context()); err != nil {
 			log.Printf("rate limiter error: %s", err)
@@ -120,7 +121,8 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 			return
 		}
 
-		// TODO: Limit concurrency to avoid attack vector
+		lock.Lock()
+		defer lock.Unlock()
 		err := kc.RegisterUser(r.Context(), email)
 
 		// Limit the number of accounts with unconfirmed email addresses to avoid spam/abuse
