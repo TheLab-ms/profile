@@ -6,10 +6,10 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile/internal/keycloak"
-	"github.com/TheLab-ms/profile/internal/stripeutil"
+	"github.com/TheLab-ms/profile/internal/payment"
 )
 
-func CalculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionLineItemParams {
+func CalculateLineItems(user *keycloak.User, priceID string, pc *payment.PriceCache) []*stripe.CheckoutSessionLineItemParams {
 	// Migrate existing paypal users at their current rate
 	if priceID == "paypal" {
 		interval := "month"
@@ -38,7 +38,7 @@ func CalculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.Pric
 	}}
 }
 
-func CalculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
+func CalculateDiscount(user *keycloak.User, priceID string, pc *payment.PriceCache) []*stripe.CheckoutSessionDiscountParams {
 	if user.DiscountType == "" || priceID == "" {
 		return nil
 	}
@@ -52,14 +52,14 @@ func CalculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.Price
 	return nil
 }
 
-func CalculateDiscounts(user *keycloak.User, prices []*stripeutil.Price) []*stripeutil.Price {
+func CalculateDiscounts(user *keycloak.User, prices []*payment.Price) []*payment.Price {
 	if user.DiscountType == "" {
 		return prices
 	}
-	out := make([]*stripeutil.Price, len(prices))
+	out := make([]*payment.Price, len(prices))
 	for i, price := range prices {
 		amountOff := price.CouponAmountsOff[user.DiscountType]
-		out[i] = &stripeutil.Price{
+		out[i] = &payment.Price{
 			ID:               price.ID,
 			ProductID:        price.ProductID,
 			Annual:           price.Annual,

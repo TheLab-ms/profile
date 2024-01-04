@@ -29,9 +29,9 @@ import (
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/pricing"
 	"github.com/TheLab-ms/profile/internal/reporting"
-	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
 
 //go:embed assets/*
@@ -67,7 +67,7 @@ func main() {
 	kc := keycloak.New(env)
 	go kc.RunReportingLoop()
 
-	priceCache := &stripeutil.PriceCache{}
+	priceCache := &payment.PriceCache{}
 	priceCache.Start()
 
 	// Redirect from / to /profile
@@ -151,7 +151,7 @@ func newRegistrationFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
+func newProfileViewHandler(kc *keycloak.Keycloak, pc *payment.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		etagString := r.URL.Query().Get("i")
 		etag, _ := strconv.ParseInt(etagString, 10, 0)
@@ -272,7 +272,7 @@ func newContactInfoFormHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
+func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *payment.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := kc.GetUser(r.Context(), getUserID(r))
 		if err != nil {
@@ -369,7 +369,7 @@ func newDocusealWebhookHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	}
 }
 
-func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeutil.PriceCache) http.HandlerFunc {
+func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *payment.PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		if err != nil {

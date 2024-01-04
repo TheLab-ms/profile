@@ -1,4 +1,4 @@
-package stripeutil
+package payment
 
 import (
 	"log"
