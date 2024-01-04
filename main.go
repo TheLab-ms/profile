@@ -441,7 +441,7 @@ func newStripeWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeuti
 
 func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := kc.ListUsers(r.Context(), w)
+		users, err := kc.ListUsers(r.Context())
 		if err != nil {
 			log.Printf("error while listing users: %s", err)
 			w.WriteHeader(500)

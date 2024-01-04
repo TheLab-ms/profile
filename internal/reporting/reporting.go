@@ -22,9 +22,19 @@ CREATE TABLE IF NOT EXISTS profile_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profile_events_time ON profile_events (time);
+
+CREATE TABLE IF NOT EXISTS profile_metrics (
+	id serial primary key,
+	time timestamp not null,
+	active_members int not null,
+	inactive_members int not null
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_metrics_time ON profile_metrics (time);
 `
 
 type ReportingSink struct {
+	db     *pgx.Conn
 	buffer chan *event
 }
 
@@ -42,6 +52,7 @@ func NewSink(env *conf.Env) (*ReportingSink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("constructing db client: %w", err)
 	}
+	s.db = db
 
 	_, err = db.Exec(migration)
 	if err != nil {
@@ -78,6 +89,21 @@ func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 		Reason:    reason,
 		Message:   fmt.Sprintf(templ, args...),
 	}
+}
+
+func (s *ReportingSink) LastMetricTime() (time.Time, error) {
+	t := time.Time{}
+	return t, s.db.QueryRow("SELECT MAX(time) AS time FROM profile_metrics").Scan(&t)
+}
+
+func (s *ReportingSink) WriteMetrics(counters *Counters) error {
+	_, err := s.db.Exec("INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
+	return err
+}
+
+type Counters struct {
+	ActiveMembers   int64
+	InactiveMembers int64
 }
 
 type event struct {

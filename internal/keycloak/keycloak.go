@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -265,7 +264,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 	return nil
 }
 
-func (k *Keycloak) ListUsers(ctx context.Context, w io.Writer) ([]*ExtendedUser, error) {
+func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)
@@ -381,6 +380,54 @@ func (k *Keycloak) getClientSecret() (string, error) {
 		return "", fmt.Errorf("reading client secret from disk: %w", err)
 	}
 	return string(clientSecret), nil
+}
+
+func (k *Keycloak) RunReportingLoop() {
+	const interval = time.Hour * 24
+	const retryInterval = time.Second * 10
+	go func() {
+		timer := time.NewTimer(time.Second)
+		for range timer.C {
+			lastTime, err := reporting.DefaultSink.LastMetricTime()
+			if err != nil {
+				log.Printf("error while getting the last metrics reporting time: %s", err)
+				timer.Reset(retryInterval)
+				continue
+			}
+
+			delta := interval - time.Since(lastTime)
+			if delta > 0 {
+				timer.Reset(delta)
+				log.Printf("it isn't time to report metrics yet - setting time for %d seconds in the future", int(delta.Seconds()))
+				continue
+			}
+
+			k.reportMetrics()
+			timer.Reset(retryInterval) // don't wait the entire interval in case reportMetrics failed
+		}
+	}()
+}
+
+func (k *Keycloak) reportMetrics() {
+	users, err := k.ListUsers(context.Background())
+	if err != nil {
+		log.Printf("error listing users for the sake of ")
+	}
+
+	counters := reporting.Counters{}
+	for _, user := range users {
+		if user.ActiveMember {
+			counters.ActiveMembers++
+		} else {
+			counters.ActiveMembers--
+		}
+	}
+
+	err = reporting.DefaultSink.WriteMetrics(&counters)
+	if err != nil {
+		log.Printf("unable to write metrics to the reporting store: %s", err)
+		return
+	}
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
