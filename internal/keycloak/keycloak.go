@@ -386,7 +386,7 @@ func (k *Keycloak) RunReportingLoop() {
 	const interval = time.Hour * 24
 	const retryInterval = time.Second * 10
 	go func() {
-		timer := time.NewTimer(time.Second)
+		timer := time.NewTimer(retryInterval)
 		for range timer.C {
 			lastTime, err := reporting.DefaultSink.LastMetricTime()
 			if err != nil {
@@ -397,8 +397,8 @@ func (k *Keycloak) RunReportingLoop() {
 
 			delta := interval - time.Since(lastTime)
 			if delta > 0 {
-				timer.Reset(delta)
 				log.Printf("it isn't time to report metrics yet - setting time for %d seconds in the future", int(delta.Seconds()))
+				timer.Reset(delta)
 				continue
 			}
 
@@ -411,7 +411,8 @@ func (k *Keycloak) RunReportingLoop() {
 func (k *Keycloak) reportMetrics() {
 	users, err := k.ListUsers(context.Background())
 	if err != nil {
-		log.Printf("error listing users for the sake of ")
+		log.Printf("error listing users to derive metrics: %s", err)
+		return
 	}
 
 	counters := reporting.Counters{}

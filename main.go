@@ -64,6 +64,8 @@ func main() {
 	}
 
 	kc := keycloak.New(env)
+	go kc.RunReportingLoop()
+
 	priceCache := &stripeutil.PriceCache{}
 	priceCache.Start()
 
