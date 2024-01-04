@@ -1,4 +1,4 @@
-package main
+package pricing
 
 import (
 	"time"
@@ -9,7 +9,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
 
-func calculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionLineItemParams {
+func CalculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionLineItemParams {
 	// Migrate existing paypal users at their current rate
 	if priceID == "paypal" {
 		interval := "month"
@@ -38,7 +38,7 @@ func calculateLineItems(user *keycloak.User, priceID string, pc *stripeutil.Pric
 	}}
 }
 
-func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
+func CalculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.PriceCache) []*stripe.CheckoutSessionDiscountParams {
 	if user.DiscountType == "" || priceID == "" {
 		return nil
 	}
@@ -52,7 +52,7 @@ func calculateDiscount(user *keycloak.User, priceID string, pc *stripeutil.Price
 	return nil
 }
 
-func calculateDiscounts(user *keycloak.User, prices []*stripeutil.Price) []*stripeutil.Price {
+func CalculateDiscounts(user *keycloak.User, prices []*stripeutil.Price) []*stripeutil.Price {
 	if user.DiscountType == "" {
 		return prices
 	}
@@ -71,7 +71,7 @@ func calculateDiscounts(user *keycloak.User, prices []*stripeutil.Price) []*stri
 	return out
 }
 
-func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
+func CalculateBillingCycleAnchor(user *keycloak.User) *int64 {
 	if user.LastPaypalTransactionPrice == 0 {
 		return nil
 	}

@@ -29,6 +29,7 @@ import (
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/pricing"
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"github.com/TheLab-ms/profile/internal/stripeutil"
 )
@@ -163,7 +164,7 @@ func newProfileViewHandler(kc *keycloak.Keycloak, pc *stripeutil.PriceCache) htt
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
-			"prices":          calculateDiscounts(user, pc.GetPrices()),
+			"prices":          pricing.CalculateDiscounts(user, pc.GetPrices()),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
 			"stripePending":   etagString != "" && user.StripeETag < etag,
 		}
@@ -309,8 +310,8 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 
 		// Calculate specific pricing based on the member's profile
 		priceID := r.URL.Query().Get("price")
-		checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
-		checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
+		checkoutParams.LineItems = pricing.CalculateLineItems(user, priceID, pc)
+		checkoutParams.Discounts = pricing.CalculateDiscount(user, priceID, pc)
 		if checkoutParams.Discounts == nil {
 			// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
 			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
@@ -318,7 +319,7 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *stripeut
 
 		checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 			Metadata:           map[string]string{"etag": etag},
-			BillingCycleAnchor: calculateBillingCycleAnchor(user), // This enables migration from paypal
+			BillingCycleAnchor: pricing.CalculateBillingCycleAnchor(user), // This enables migration from paypal
 		}
 		if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
 			// In this case, the member is already paid up - don't make them pay for the currenet period again
