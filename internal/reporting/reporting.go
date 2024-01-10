@@ -1,11 +1,12 @@
 package reporting
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 )
@@ -34,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_profile_metrics_time ON profile_metrics (time);
 `
 
 type ReportingSink struct {
-	db     *pgx.Conn
+	db     *pgxpool.Pool
 	buffer chan *event
 }
 
@@ -44,17 +45,13 @@ func NewSink(env *conf.Env) (*ReportingSink, error) {
 		return s, nil
 	}
 
-	db, err := pgx.Connect(pgx.ConnConfig{
-		Host:     env.EventPsqlAddr,
-		User:     env.EventPsqlUsername,
-		Password: env.EventPsqlPassword,
-	})
+	db, err := pgxpool.Connect(context.Background(), fmt.Sprintf("postgres://%s:%s@%s/postgres", env.EventPsqlUsername, env.EventPsqlPassword, env.EventPsqlAddr))
 	if err != nil {
 		return nil, fmt.Errorf("constructing db client: %w", err)
 	}
 	s.db = db
 
-	_, err = db.Exec(migration)
+	_, err = db.Exec(context.Background(), migration)
 	if err != nil {
 		return nil, fmt.Errorf("db migration: %w", err)
 	}
@@ -65,7 +62,7 @@ func NewSink(env *conf.Env) (*ReportingSink, error) {
 		defer db.Close()
 
 		for event := range s.buffer {
-			_, err := db.Exec("INSERT INTO profile_events (time, email, reason, message) VALUES ($1, $2, $3, $4)", event.Timestamp, event.Email, event.Reason, event.Message)
+			_, err := db.Exec(context.Background(), "INSERT INTO profile_events (time, email, reason, message) VALUES ($1, $2, $3, $4)", event.Timestamp, event.Email, event.Reason, event.Message)
 			if err != nil {
 				log.Printf("error while flushing event to postgres: %s", err) // it would be a good idea to retry here
 			}
@@ -93,11 +90,11 @@ func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 
 func (s *ReportingSink) LastMetricTime() (time.Time, error) {
 	t := time.Time{}
-	return t, s.db.QueryRow("SELECT COALESCE(MAX(time), '0001-01-01'::timestamp) AS time FROM profile_metrics").Scan(&t)
+	return t, s.db.QueryRow(context.Background(), "SELECT COALESCE(MAX(time), '0001-01-01'::timestamp) AS time FROM profile_metrics").Scan(&t)
 }
 
 func (s *ReportingSink) WriteMetrics(counters *Counters) error {
-	_, err := s.db.Exec("INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
+	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
 	return err
 }
 
