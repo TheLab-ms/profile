@@ -45,7 +45,7 @@ func NewSink(env *conf.Env) (*ReportingSink, error) {
 		return s, nil
 	}
 
-	db, err := pgxpool.Connect(context.Background(), fmt.Sprintf("postgres://%s:%s@%s/postgres", env.EventPsqlUsername, env.EventPsqlPassword, env.EventPsqlAddr))
+	db, err := pgxpool.Connect(context.Background(), fmt.Sprintf("user=%s password=%s host=%s port=5432 dbname=postgres", env.EventPsqlUsername, env.EventPsqlPassword, env.EventPsqlAddr))
 	if err != nil {
 		return nil, fmt.Errorf("constructing db client: %w", err)
 	}
