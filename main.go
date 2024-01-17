@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/csv"
@@ -95,6 +96,7 @@ func main() {
 	mux.HandleFunc("/profile/keyfob", newKeyfobFormHandler(kc))
 	mux.HandleFunc("/profile/contact", newContactInfoFormHandler(kc))
 	mux.HandleFunc("/profile/stripe", newStripeCheckoutHandler(env, kc, priceCache))
+	mux.HandleFunc("/docuseal", newDocusealRedirectHandler(env, kc))
 	mux.HandleFunc("/webhooks/docuseal", newDocusealWebhookHandler(kc))
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(env, kc, priceCache))
 	mux.Handle("/assets/", http.FileServer(http.FS(assets)))
@@ -342,6 +344,48 @@ func newStripeCheckoutHandler(env *conf.Env, kc *keycloak.Keycloak, pc *payment.
 
 		reporting.DefaultSink.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
+	}
+}
+
+func newDocusealRedirectHandler(env *conf.Env, kc *keycloak.Keycloak) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := kc.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		by, _ := json.Marshal(map[string]any{"template_id": 1, "emails": user.Email})
+		req, err := http.NewRequest("POST", env.DocusealURL+"/api/submissions", bytes.NewBuffer(by))
+		if err != nil {
+			renderSystemError(w, "error while creating docuseal submission request: %s", err)
+			return
+		}
+		req.Header.Add("X-Auth-Token", env.DocusealToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			renderSystemError(w, "error sending docuseal submission request: %s", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		subs := []struct {
+			Slug string `json:"slug"`
+		}{}
+		err = json.NewDecoder(resp.Body).Decode(&subs)
+		if err != nil {
+			renderSystemError(w, "error while decoding docuseal submission: %s", err)
+			return
+		}
+		if len(subs) == 0 {
+			renderSystemError(w, "no submissions were returned from docuseal: %s", err)
+			return
+		}
+
+		log.Printf("initiated docuseal submission %q for user %s", subs[0].Slug, user.Email)
+		reporting.DefaultSink.Publish(user.Email, "DocusealSubmissionCreated", "created docuseal submission: %s", subs[0].Slug)
+		http.Redirect(w, r, env.DocusealURL+"/s/"+subs[0].Slug, http.StatusTemporaryRedirect)
 	}
 }
 

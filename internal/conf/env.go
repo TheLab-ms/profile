@@ -14,6 +14,9 @@ type Env struct {
 	PaypalClientID     string `split_words:"true"`
 	PaypalClientSecret string `split_words:"true"`
 
+	DocusealURL   string `split_words:"true"`
+	DocusealToken string `split_words:"true"`
+
 	// TODO: These should be prefixed "Reporting" instead of "Event"
 	EventPsqlAddr     string `split_words:"true"`
 	EventPsqlUsername string `split_words:"true"`
