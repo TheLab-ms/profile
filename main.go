@@ -23,9 +23,11 @@ import (
 	"github.com/stripe/stripe-go/v75"
 	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	"github.com/stripe/stripe-go/v75/checkout/session"
+	"github.com/teambition/rrule-go"
 	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/pricing"
@@ -85,6 +87,9 @@ func main() {
 	priceCache := &payment.PriceCache{}
 	priceCache.Start()
 
+	eventsCache := &events.EventCache{Env: env}
+	eventsCache.Start()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/profile", http.StatusTemporaryRedirect)
@@ -102,6 +107,7 @@ func main() {
 	mux.Handle("/assets/", http.FileServer(http.FS(assets)))
 	mux.HandleFunc("/admin/dump", onlyLeadership(newAdminDumpHandler(kc)))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("/api/events", newListEventsHandler(eventsCache))
 
 	go func() {
 		log.Fatal(http.ListenAndServe(":8081", promhttp.Handler()))
@@ -456,6 +462,86 @@ func newAdminDumpHandler(kc *keycloak.Keycloak) http.HandlerFunc {
 		}
 		cw.Flush() // avoid buffering entire response in memory
 	}
+}
+
+func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
+		events := cache.GetEvents()
+
+		// Expand the recurrence of every event
+		var expanded []*eventPublic
+		for _, event := range events {
+			if event.Recurrence == nil {
+				expanded = append(expanded, &eventPublic{
+					Name:        event.Name,
+					Description: event.Description,
+					Start:       event.Start.UTC().Unix(),
+					End:         event.End.UTC().Unix(),
+				})
+				continue
+			}
+
+			ropts := rrule.ROption{
+				Freq:     rrule.Frequency(event.Recurrence.Freq),
+				Interval: event.Recurrence.Interval,
+				Dtstart:  event.Recurrence.Start.UTC(),
+				Bymonth:  event.Recurrence.ByMonth,
+			}
+			for _, day := range event.Recurrence.ByWeekday {
+				switch day {
+				case 0:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.SU)
+				case 1:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.MO)
+				case 2:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.TU)
+				case 3:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.WE)
+				case 4:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.TH)
+				case 5:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.FR)
+				case 6:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.SA)
+				}
+			}
+
+			rule, err := rrule.NewRRule(ropts)
+			if err != nil {
+				renderSystemError(w, "error expanding recurrence: %s", err.Error())
+				return
+			}
+
+			var end time.Time
+			if event.Recurrence.End != nil {
+				end = *event.Recurrence.End
+			} else {
+				end = now.Add(time.Hour * 24 * 30)
+			}
+
+			times := rule.Between(now, end, true)
+			duration := event.End.Sub(event.Start)
+			for _, start := range times {
+				expanded = append(expanded, &eventPublic{
+					Name:        event.Name,
+					Description: event.Description,
+					Start:       start.Unix(),
+					End:         start.Add(duration).Unix(),
+				})
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&expanded)
+	}
+}
+
+type eventPublic struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Start       int64  `json:"start"`
+	End         int64  `json:"end"`
 }
 
 func onlyLeadership(next http.HandlerFunc) http.HandlerFunc {

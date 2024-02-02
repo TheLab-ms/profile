@@ -17,6 +17,9 @@ type Env struct {
 	DocusealURL   string `split_words:"true"`
 	DocusealToken string `split_words:"true"`
 
+	DiscordGuildID  string `split_words:"true"`
+	DiscordBotToken string `split_words:"true"`
+
 	// TODO: These should be prefixed "Reporting" instead of "Event"
 	EventPsqlAddr     string `split_words:"true"`
 	EventPsqlUsername string `split_words:"true"`
