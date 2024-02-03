@@ -475,14 +475,14 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 			// Support a magic location string to designate members only events
 			membersOnly := event.Metadata.Location == "TheLab (Members Only)"
 
-			expanded = append(expanded, &eventPublic{
-				Name:        event.Name,
-				Description: event.Description,
-				Start:       event.Start.UTC().Unix(),
-				End:         event.End.UTC().Unix(),
-				MembersOnly: membersOnly,
-			})
 			if event.Recurrence == nil {
+				expanded = append(expanded, &eventPublic{
+					Name:        event.Name,
+					Description: event.Description,
+					Start:       event.Start.UTC().Unix(),
+					End:         event.End.UTC().Unix(),
+					MembersOnly: membersOnly,
+				})
 				continue
 			}
 
