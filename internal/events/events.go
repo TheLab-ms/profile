@@ -20,6 +20,9 @@ type Event struct {
 	Start       time.Time   `json:"scheduled_start_time"`
 	End         time.Time   `json:"scheduled_end_time"`
 	Recurrence  *Recurrence `json:"recurrence_rule"`
+	Metadata    struct {
+		Location string `json:"location"`
+	} `json:"entity_metadata"`
 }
 
 type Recurrence struct {

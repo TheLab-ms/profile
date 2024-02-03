@@ -472,11 +472,15 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 		// Expand the recurrence of every event
 		var expanded []*eventPublic
 		for _, event := range events {
+			// Support a magic location string to designate members only events
+			membersOnly := event.Metadata.Location == "TheLab (Members Only)"
+
 			expanded = append(expanded, &eventPublic{
 				Name:        event.Name,
 				Description: event.Description,
 				Start:       event.Start.UTC().Unix(),
 				End:         event.End.UTC().Unix(),
+				MembersOnly: membersOnly,
 			})
 			if event.Recurrence == nil {
 				continue
@@ -531,6 +535,7 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 					Description: event.Description,
 					Start:       start.UTC().Unix(),
 					End:         start.Add(duration).Unix(),
+					MembersOnly: membersOnly,
 				})
 			}
 		}
@@ -548,6 +553,7 @@ type eventPublic struct {
 	Description string `json:"description"`
 	Start       int64  `json:"start"`
 	End         int64  `json:"end"`
+	MembersOnly bool   `json:"membersOnly"`
 }
 
 func onlyLeadership(next http.HandlerFunc) http.HandlerFunc {
