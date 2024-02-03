@@ -472,16 +472,17 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 		// Expand the recurrence of every event
 		var expanded []*eventPublic
 		for _, event := range events {
+			expanded = append(expanded, &eventPublic{
+				Name:        event.Name,
+				Description: event.Description,
+				Start:       event.Start.UTC().Unix(),
+				End:         event.End.UTC().Unix(),
+			})
 			if event.Recurrence == nil {
-				expanded = append(expanded, &eventPublic{
-					Name:        event.Name,
-					Description: event.Description,
-					Start:       event.Start.UTC().Unix(),
-					End:         event.End.UTC().Unix(),
-				})
 				continue
 			}
 
+			// Expand out the recurring events into a slice of start times
 			ropts := rrule.ROption{
 				Freq:     rrule.Frequency(event.Recurrence.Freq),
 				Interval: event.Recurrence.Interval,
@@ -489,30 +490,31 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 				Bymonth:  event.Recurrence.ByMonth,
 			}
 			for _, day := range event.Recurrence.ByWeekday {
+				// annoying that the library doesn't expose days of the week as ints - they line up with discord's representation anyway
 				switch day {
 				case 0:
-					ropts.Byweekday = append(ropts.Byweekday, rrule.SU)
-				case 1:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.MO)
-				case 2:
+				case 1:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.TU)
-				case 3:
+				case 2:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.WE)
-				case 4:
+				case 3:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.TH)
-				case 5:
+				case 4:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.FR)
-				case 6:
+				case 5:
 					ropts.Byweekday = append(ropts.Byweekday, rrule.SA)
+				case 6:
+					ropts.Byweekday = append(ropts.Byweekday, rrule.SU)
 				}
 			}
-
 			rule, err := rrule.NewRRule(ropts)
 			if err != nil {
 				renderSystemError(w, "error expanding recurrence: %s", err.Error())
 				return
 			}
 
+			// Our expansion ends either 1mo out from now or when the recurrence ends
 			var end time.Time
 			if event.Recurrence.End != nil {
 				end = *event.Recurrence.End
@@ -520,13 +522,14 @@ func newListEventsHandler(cache *events.EventCache) http.HandlerFunc {
 				end = now.Add(time.Hour * 24 * 30)
 			}
 
+			// Calculate the end time by adding the duration of the event to the start time
 			times := rule.Between(now, end, true)
 			duration := event.End.Sub(event.Start)
 			for _, start := range times {
 				expanded = append(expanded, &eventPublic{
 					Name:        event.Name,
 					Description: event.Description,
-					Start:       start.Unix(),
+					Start:       start.UTC().Unix(),
 					End:         start.Add(duration).Unix(),
 				})
 			}
