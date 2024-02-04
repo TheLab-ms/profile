@@ -6,4 +6,5 @@ RUN CGO_ENABLED=0 go build
 
 FROM scratch
 COPY --from=builder /app/profile /profile
+ENV PATH=/bin
 ENTRYPOINT ["/profile"]
