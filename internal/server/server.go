@@ -51,6 +51,8 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/docuseal", s.newDocusealRedirectHandler())
 	mux.HandleFunc("/secrets", s.newSecretIndexHandler())
 	mux.HandleFunc("/secrets/encrypt", s.newSecretEncryptionHandler())
+	mux.HandleFunc("/files", s.newFileUploadHandler())
+	mux.HandleFunc("/f/", s.newFileDownloadHandler())
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
