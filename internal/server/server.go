@@ -49,12 +49,14 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/profile/contact", s.newContactInfoFormHandler())
 	mux.HandleFunc("/profile/stripe", s.newStripeCheckoutHandler())
 	mux.HandleFunc("/docuseal", s.newDocusealRedirectHandler())
+	mux.HandleFunc("/secrets", s.newSecretIndexHandler())
+	mux.HandleFunc("/secrets/encrypt", s.newSecretEncryptionHandler())
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
-	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
+	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
 	return mux
 }
 

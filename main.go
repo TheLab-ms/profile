@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -59,6 +60,14 @@ func main() {
 
 	// Stripe library (sadly) stores its creds in a global var
 	stripe.Key = env.StripeKey
+
+	// We use the Age CLI to encrypt/decrypt secrets
+	// It requires the private key to be on disk, so we write it out from the config here.
+	if env.AgePrivateKey != "" {
+		if err := os.WriteFile("key.txt", []byte(env.AgePrivateKey), 0600); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	// Reporting allows meaningful actions taken by users to be stored somewhere for reference
 	var err error

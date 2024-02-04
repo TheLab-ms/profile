@@ -36,6 +36,10 @@ type Env struct {
 	DiscordGuildID  string `split_words:"true"`
 	DiscordBotToken string `split_words:"true"`
 
+	// Age (secrets encrpytion)
+	AgePublicKey  string `split_words:"true"`
+	AgePrivateKey string `split_words:"true"`
+
 	// Reporting
 	// TODO: These should be prefixed "Reporting" instead of "Event"
 	EventPsqlAddr     string `split_words:"true"`
