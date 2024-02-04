@@ -90,7 +90,6 @@ func (s *Server) newSecretEncryptionHandler() http.HandlerFunc {
 	}
 }
 
-// TODO: Rename
 type secretPayload struct {
 	EncryptedByUser string `json:"eb"`
 	EncryptedAt     int64  `json:"ea"` // seconds since unix epoch utc
