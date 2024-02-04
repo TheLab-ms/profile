@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS profile_metrics (
 CREATE INDEX IF NOT EXISTS idx_profile_metrics_time ON profile_metrics (time);
 `
 
+// ReportingSink buffers and periodically flushes meaningful user actions to postgres.
 type ReportingSink struct {
 	db     *pgxpool.Pool
 	buffer chan *event

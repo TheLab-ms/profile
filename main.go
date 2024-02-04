@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stripe/stripe-go/v75"
@@ -54,13 +53,15 @@ func init() {
 }
 
 func main() {
+	// Load the app's configuration from env vars bound to the config struct through magic
 	env := &conf.Env{}
-	err := envconfig.Process("", env)
-	if err != nil {
-		log.Fatal(err)
-	}
+	env.MustLoad()
+
+	// Stripe library (sadly) stores its creds in a global var
 	stripe.Key = env.StripeKey
 
+	// Reporting allows meaningful actions taken by users to be stored somewhere for reference
+	var err error
 	reporting.DefaultSink, err = reporting.NewSink(env)
 	if err != nil {
 		log.Fatal(err)
@@ -69,16 +70,20 @@ func main() {
 	kc := keycloak.New(env)
 	go kc.RunReportingLoop()
 
+	// Price cache polls Stripe to load the configured prices, and is refreshed when they change (via webhook)
 	priceCache := &payment.PriceCache{}
 	priceCache.Start()
 
+	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := &events.EventCache{Env: env}
 	eventsCache.Start()
 
+	// Serve prometheus metrics on a separate port
 	go func() {
 		log.Fatal(http.ListenAndServe(":8081", promhttp.Handler()))
 	}()
 
+	// Run the main http server
 	svr := &server.Server{
 		Env:         env,
 		Keycloak:    kc,
@@ -87,7 +92,8 @@ func main() {
 		Assets:      assets,
 		Templates:   templates,
 	}
-
-	log.Fatal(http.ListenAndServe(":8080", promhttp.InstrumentHandlerInFlight(inFlightGauge,
-		promhttp.InstrumentHandlerCounter(requestCounter, svr.NewHandler()))))
+	log.Fatal(http.ListenAndServe(":8080",
+		promhttp.InstrumentHandlerInFlight(inFlightGauge,
+			promhttp.InstrumentHandlerCounter(requestCounter,
+				svr.NewHandler()))))
 }

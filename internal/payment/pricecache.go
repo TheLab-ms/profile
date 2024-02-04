@@ -12,14 +12,6 @@ import (
 	"github.com/stripe/stripe-go/v75/product"
 )
 
-type Price struct {
-	ID, ProductID    string
-	Annual           bool
-	Price            float64
-	CouponIDs        map[string]string
-	CouponAmountsOff map[string]int64
-}
-
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
 type PriceCache struct {
 	mut     sync.Mutex
@@ -132,4 +124,12 @@ func (p *PriceCache) listPrices() []*Price {
 	}
 
 	return returns
+}
+
+type Price struct {
+	ID, ProductID    string
+	Annual           bool
+	Price            float64
+	CouponIDs        map[string]string
+	CouponAmountsOff map[string]int64
 }

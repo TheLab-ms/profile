@@ -19,6 +19,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
+// NewWebhookHandler handles Stripe webhooks.
 func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
