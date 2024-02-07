@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/teambition/rrule-go"
@@ -25,7 +26,8 @@ func (s *Server) newListEventsHandler() http.HandlerFunc {
 		var expanded []*eventPublic
 		for _, event := range events {
 			// Support a magic location string to designate members only events
-			membersOnly := event.Metadata.Location == "TheLab (Members Only)"
+			// membersOnly := event.Metadata.Location == "TheLab (Members Only)"
+			membersOnly := strings.Contains(strings.ToLower(event.Name), "(member event)")
 
 			if event.Recurrence == nil {
 				expanded = append(expanded, &eventPublic{
