@@ -42,7 +42,7 @@ func (s *Server) newSecretIndexHandler() http.HandlerFunc {
 			return
 		}
 
-		if !isLeadership {
+		if (p.Recipient == nil && !isLeadership) || (p.Recipient != nil && *p.Recipient != userID) {
 			p.Value = "" // just in case the template somehow leaks the value
 			w.Header().Add("Content-Type", "text/html")
 			s.Templates.ExecuteTemplate(w, "secret-unauth.html", p)
@@ -65,13 +65,15 @@ func (s *Server) newSecretEncryptionHandler() http.HandlerFunc {
 			Description:     r.FormValue("desc"),
 			Value:           r.FormValue("value"),
 		}
+		if recip := r.FormValue("recip"); recip != "" {
+			p.Recipient = &recip
+		}
 		js, err := json.Marshal(p)
 		if err != nil {
 			panic(err) // unlikely
 		}
 
 		ciphertext := &bytes.Buffer{}
-
 		cmd := exec.CommandContext(r.Context(), "age", "--encrypt", "-r", s.Env.AgePublicKey)
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = ciphertext
@@ -91,8 +93,9 @@ func (s *Server) newSecretEncryptionHandler() http.HandlerFunc {
 }
 
 type secretPayload struct {
-	EncryptedByUser string `json:"eb"`
-	EncryptedAt     int64  `json:"ea"` // seconds since unix epoch utc
-	Description     string `json:"d"`
-	Value           string `json:"v"`
+	EncryptedByUser string  `json:"eb"`
+	EncryptedAt     int64   `json:"ea"` // seconds since unix epoch utc
+	Description     string  `json:"d"`
+	Recipient       *string `json:"r"`
+	Value           string  `json:"v"`
 }
