@@ -97,7 +97,7 @@ func NewFileServerHandler(signingKey []byte, dir string) http.Handler {
 			http.Error(w, "encoding error", 400)
 			return
 		}
-		const limit = 1024 * 1024 * 1024 // 1gb limit
+		const limit = 1024 * 1024 * 1024 * 3 // 3gb limit
 		if header.Size > limit {
 			http.Error(w, "file is too big", 400)
 			return
