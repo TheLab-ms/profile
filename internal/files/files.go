@@ -94,6 +94,7 @@ func NewFileServerHandler(signingKey []byte, dir string) http.Handler {
 
 		filereader, header, err := r.FormFile("upload")
 		if err != nil {
+			log.Printf("file server encoding error: %s", err)
 			http.Error(w, "encoding error", 400)
 			return
 		}
@@ -115,6 +116,7 @@ func NewFileServerHandler(signingKey []byte, dir string) http.Handler {
 
 		_, err = io.Copy(file, reader)
 		if err != nil {
+			log.Printf("upload error: %s", err)
 			http.Error(w, "upload error", 400)
 			return
 		}
