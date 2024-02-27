@@ -1,0 +1,114 @@
+[
+    {
+        "name": "New Member Keyfob Pickup \u0026 Tours (Public Event)",
+        "description": "New members come get your keyfob assigned and activated! Potential members, come see the space!",
+        "start": 1709082000,
+        "end": 1709078400,
+        "membersOnly": false
+    },
+    {
+        "name": "StitchLab Fiber Night",
+        "description": "Fiber nights at TheLab every Tuesday night from 7-9 pm. All types of fiber crafting welcome. Knitting, crochet, sewing, weaving, cross stitch, embroidery, spinning, etc. Bring your project up to the StitchLab and craft alongside fellow enthusiasts of all things fiber.",
+        "start": 1709082000,
+        "end": 1709074800,
+        "membersOnly": false
+    },
+    {
+        "name": "Game Night (Member event)",
+        "description": "Game Nights at TheLab are back! Come hang out and play a multitude of different card, board, or video games, Friday nights at TheLab. *Game nights are reserved for dues paying members of TheLab.ms and their guests.*",
+        "start": 1709298000,
+        "end": 1709283600,
+        "membersOnly": true
+    },
+    {
+        "name": "New Member Keyfob Pickup \u0026 Tours (Public Event)",
+        "description": "New members come get your keyfob assigned and activated! Potential members, come see the space!",
+        "start": 1709686800,
+        "end": 1709683200,
+        "membersOnly": false
+    },
+    {
+        "name": "StitchLab Fiber Night",
+        "description": "Fiber nights at TheLab every Tuesday night from 7-9 pm. All types of fiber crafting welcome. Knitting, crochet, sewing, weaving, cross stitch, embroidery, spinning, etc. Bring your project up to the StitchLab and craft alongside fellow enthusiasts of all things fiber.",
+        "start": 1709686800,
+        "end": 1709679600,
+        "membersOnly": false
+    },
+    {
+        "name": "Monthly Membership Meeting",
+        "description": "This meeting is open to all members, and their guests, to get to know each other, and to find out what opportunities are available at the makerspace.",
+        "start": 1709776800,
+        "end": 1709775000,
+        "membersOnly": false
+    },
+    {
+        "name": "Monthly Leadership Meeting",
+        "description": "Leadership Meetings @8:30pm so that Leadership can still give tours and help with sign ups and key fobs at 7pm, and be allowed time to participate in the meetings afterward. \n\nThis is a meeting for TheLab.ms Leadership: members are welcome to attend, but are asked to withhold commentary or questions until the end of the meeting.\n\nThis event takes place both at TheLab.ms's physical location AND online.",
+        "start": 1709778600,
+        "end": 1709776800,
+        "membersOnly": false
+    },
+    {
+        "name": "Game Night (Member event)",
+        "description": "Game Nights at TheLab are back! Come hang out and play a multitude of different card, board, or video games, Friday nights at TheLab. *Game nights are reserved for dues paying members of TheLab.ms and their guests.*",
+        "start": 1709902800,
+        "end": 1709888400,
+        "membersOnly": true
+    },
+    {
+        "name": "StitchLab Fiber Night",
+        "description": "Fiber nights at TheLab every Tuesday night from 7-9 pm. All types of fiber crafting welcome. Knitting, crochet, sewing, weaving, cross stitch, embroidery, spinning, etc. Bring your project up to the StitchLab and craft alongside fellow enthusiasts of all things fiber.",
+        "start": 1710291600,
+        "end": 1710284400,
+        "membersOnly": false
+    },
+    {
+        "name": "New Member Keyfob Pickup \u0026 Tours (Public Event)",
+        "description": "New members come get your keyfob assigned and activated! Potential members, come see the space!",
+        "start": 1710291600,
+        "end": 1710288000,
+        "membersOnly": false
+    },
+    {
+        "name": "Game Night (Member event)",
+        "description": "Game Nights at TheLab are back! Come hang out and play a multitude of different card, board, or video games, Friday nights at TheLab. *Game nights are reserved for dues paying members of TheLab.ms and their guests.*",
+        "start": 1710507600,
+        "end": 1710493200,
+        "membersOnly": true
+    },
+    {
+        "name": "StitchLab Fiber Night",
+        "description": "Fiber nights at TheLab every Tuesday night from 7-9 pm. All types of fiber crafting welcome. Knitting, crochet, sewing, weaving, cross stitch, embroidery, spinning, etc. Bring your project up to the StitchLab and craft alongside fellow enthusiasts of all things fiber.",
+        "start": 1710896400,
+        "end": 1710889200,
+        "membersOnly": false
+    },
+    {
+        "name": "New Member Keyfob Pickup \u0026 Tours (Public Event)",
+        "description": "New members come get your keyfob assigned and activated! Potential members, come see the space!",
+        "start": 1710896400,
+        "end": 1710892800,
+        "membersOnly": false
+    },
+    {
+        "name": "Game Night (Member event)",
+        "description": "Game Nights at TheLab are back! Come hang out and play a multitude of different card, board, or video games, Friday nights at TheLab. *Game nights are reserved for dues paying members of TheLab.ms and their guests.*",
+        "start": 1711112400,
+        "end": 1711098000,
+        "membersOnly": true
+    },
+    {
+        "name": "New Member Keyfob Pickup \u0026 Tours (Public Event)",
+        "description": "New members come get your keyfob assigned and activated! Potential members, come see the space!",
+        "start": 1711501200,
+        "end": 1711497600,
+        "membersOnly": false
+    },
+    {
+        "name": "StitchLab Fiber Night",
+        "description": "Fiber nights at TheLab every Tuesday night from 7-9 pm. All types of fiber crafting welcome. Knitting, crochet, sewing, weaving, cross stitch, embroidery, spinning, etc. Bring your project up to the StitchLab and craft alongside fellow enthusiasts of all things fiber.",
+        "start": 1711501200,
+        "end": 1711494000,
+        "membersOnly": false
+    }
+]

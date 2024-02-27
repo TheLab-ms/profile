@@ -87,8 +87,8 @@ func main() {
 	priceCache.Start()
 
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
-	eventsCache := &events.EventCache{Env: env}
-	eventsCache.Start()
+	eventsCache := events.NewCache(env)
+	eventsCache.Start(context.Background())
 
 	// Serve prometheus metrics on a separate port
 	go func() {

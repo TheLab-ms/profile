@@ -8,6 +8,9 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
+# github.com/davecgh/go-spew v1.1.1
+## explicit
+github.com/davecgh/go-spew/spew
 # github.com/go-resty/resty/v2 v2.7.0
 ## explicit; go 1.11
 github.com/go-resty/resty/v2
@@ -69,6 +72,9 @@ github.com/opentracing/opentracing-go/log
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+## explicit
+github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.18.0
 ## explicit; go 1.19
 github.com/prometheus/client_golang/prometheus
@@ -92,8 +98,12 @@ github.com/prometheus/procfs/internal/util
 github.com/segmentio/ksuid
 # github.com/shopspring/decimal v1.3.1
 ## explicit; go 1.13
+# github.com/stretchr/objx v0.5.0
+## explicit; go 1.12
 # github.com/stretchr/testify v1.8.4
 ## explicit; go 1.20
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # github.com/stripe/stripe-go/v75 v75.11.0
 ## explicit; go 1.13
 github.com/stripe/stripe-go/v75
@@ -164,3 +174,6 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3
