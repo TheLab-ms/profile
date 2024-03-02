@@ -203,7 +203,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 
 	kcuser := user.keycloakObject
 	attr := safeGetAttrs(kcuser)
-	active := sub.Status == stripe.SubscriptionStatusActive
+	active := sub.Status == stripe.SubscriptionStatusActive || sub.Status == stripe.SubscriptionStatusTrialing
 
 	// Don't de-activate accounts when we receive cancelation webhooks for a subscription that is not currently in use.
 	// This shouldn't be possible for any accounts other than tests.
