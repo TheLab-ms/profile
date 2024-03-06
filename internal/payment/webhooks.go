@@ -12,6 +12,7 @@ import (
 
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/customer"
+	"github.com/stripe/stripe-go/v75/subscription"
 	"github.com/stripe/stripe-go/v75/webhook"
 
 	"github.com/TheLab-ms/profile/internal/conf"
@@ -51,11 +52,11 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 			return
 		}
 
-		sub := &stripe.Subscription{}
-		err = json.Unmarshal(event.Data.Raw, sub)
+		subID := event.Data.Object["id"].(string)
+		sub, err := subscription.Get(subID, &stripe.SubscriptionParams{})
 		if err != nil {
-			log.Printf("got invalid Stripe webhook event: %s", err)
-			w.WriteHeader(400)
+			log.Printf("unable to get Stripe subscription object: %s", err)
+			w.WriteHeader(500)
 			return
 		}
 

@@ -114,6 +114,7 @@ github.com/stripe/stripe-go/v75/customer
 github.com/stripe/stripe-go/v75/form
 github.com/stripe/stripe-go/v75/price
 github.com/stripe/stripe-go/v75/product
+github.com/stripe/stripe-go/v75/subscription
 github.com/stripe/stripe-go/v75/webhook
 # github.com/teambition/rrule-go v1.8.2
 ## explicit; go 1.16
