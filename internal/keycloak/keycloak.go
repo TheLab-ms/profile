@@ -424,7 +424,7 @@ func (k *Keycloak) reportMetrics() {
 		if user.ActiveMember {
 			counters.ActiveMembers++
 		} else {
-			counters.ActiveMembers--
+			counters.InactiveMembers++
 		}
 	}
 
