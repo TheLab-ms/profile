@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
-	"github.com/TheLab-ms/profile/internal/files"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/reporting"
@@ -94,27 +92,6 @@ func main() {
 	go func() {
 		log.Fatal(http.ListenAndServe(":8081", promhttp.Handler()))
 	}()
-
-	// Run the file server on a different port
-	//
-	// This is designed to be separate from the main server for a few reasons:
-	// it's the only part of the app that isn't stateless, and it makes sense for
-	// it to live on the LAN - not out on the internet like this app.
-	//
-	// Files are limited size and only persist for 24hr.
-	//
-	// TODO: Make this server more modular and flexible
-	if env.FileUploadDir != "" {
-		files.StartCleanupLoop(context.Background(), env.FileUploadDir, time.Hour*24)
-
-		go func() {
-			handler := files.NewFileServerHandler([]byte(env.FileTokenSigningKey), env.FileUploadDir)
-			log.Fatal(http.ListenAndServe(":8888",
-				promhttp.InstrumentHandlerInFlight(inFlightGauge,
-					promhttp.InstrumentHandlerCounter(requestCounter,
-						handler))))
-		}()
-	}
 
 	// Run the main http server
 	svr := &server.Server{

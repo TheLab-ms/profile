@@ -42,11 +42,6 @@ type Env struct {
 	AgePublicKey  string `split_words:"true"`
 	AgePrivateKey string `split_words:"true"`
 
-	// File storage
-	FileServerURL       string `split_words:"true"`
-	FileTokenSigningKey string `split_words:"true"`
-	FileUploadDir       string `split_words:"true"`
-
 	// Reporting
 	// TODO: These should be prefixed "Reporting" instead of "Event"
 	EventPsqlAddr     string `split_words:"true"`
