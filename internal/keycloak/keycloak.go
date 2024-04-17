@@ -226,9 +226,8 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
 		}
 	} else {
-		attr["stripeID"] = []string{""}
-		attr["stripeSubscriptionID"] = []string{""}
-		attr["stripeCancelationTime"] = []string{""}
+		// Revoke building access when payment is canceled
+		attr["buildingAccessApprover"] = []string{""}
 	}
 
 	if sub.Metadata != nil {
