@@ -177,6 +177,18 @@ func (k *Keycloak) UpdateUserFobID(ctx context.Context, user *User, fobID int) e
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, approver string) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	attr := safeGetAttrs(user.keycloakObject)
+	attr["buildingAccessApprover"] = []string{approver}
+
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
+}
+
 func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, user *User) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {

@@ -54,6 +54,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
+	mux.HandleFunc("/admin/enable-building-access", onlyLeadership(s.newEnableBuildingAccessHandler()))
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
@@ -263,6 +264,25 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 			})
 		}
 		cw.Flush() // avoid buffering entire response in memory
+	}
+}
+
+func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.FormValue("email"))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		err = s.Keycloak.EnableUserBuildingAccess(r.Context(), user, getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while writing to Keycloak: %s", err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte("👍"))
 	}
 }
 
