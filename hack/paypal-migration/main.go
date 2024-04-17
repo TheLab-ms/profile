@@ -26,7 +26,7 @@ func main() {
 	if err := envconfig.Process("", env); err != nil {
 		panic(err)
 	}
-	kc := keycloak.New(env)
+	kc := keycloak.New(env, nil)
 	ctx := context.Background()
 
 	token, err := kc.GetToken(ctx)

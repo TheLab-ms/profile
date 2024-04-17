@@ -14,6 +14,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/stripe/stripe-go/v75"
 
+	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
@@ -24,8 +25,9 @@ var (
 )
 
 type Keycloak struct {
-	Client *gocloak.GoCloak
-	env    *conf.Env
+	Client  *gocloak.GoCloak
+	env     *conf.Env
+	chatbot *chatbot.Discord
 
 	// use ensureToken to access these
 	tokenLock      sync.Mutex
@@ -33,8 +35,8 @@ type Keycloak struct {
 	tokenFetchTime time.Time
 }
 
-func New(c *conf.Env) *Keycloak {
-	return &Keycloak{Client: gocloak.NewClient(c.KeycloakURL), env: c}
+func New(c *conf.Env, cb *chatbot.Discord) *Keycloak {
+	return &Keycloak{Client: gocloak.NewClient(c.KeycloakURL), env: c, chatbot: cb}
 }
 
 // RegisterUser creates a user and initiates the password reset + email confirmation flow.
@@ -53,6 +55,9 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return ErrLimitExceeded
 	}
 
+	if k.chatbot != nil {
+		k.chatbot.NotifyNewMember(ctx, email)
+	}
 	userID, err := k.Client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
 		Enabled:  gocloak.BoolP(true),
 		Email:    &email,

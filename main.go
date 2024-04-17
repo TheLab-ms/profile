@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stripe/stripe-go/v75"
 
+	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
@@ -59,7 +60,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	kc := keycloak.New(env)
+	discord := chatbot.NewDiscord()
+	kc := keycloak.New(env, discord)
 	go kc.RunReportingLoop()
 
 	// Price cache polls Stripe to load the configured prices, and is refreshed when they change (via webhook)
