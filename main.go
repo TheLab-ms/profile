@@ -60,7 +60,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	discord := chatbot.NewDiscord()
+	discord := chatbot.NewDiscord(env)
 	kc := keycloak.New(env, discord)
 	go kc.RunReportingLoop()
 
