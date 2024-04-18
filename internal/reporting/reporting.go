@@ -100,37 +100,33 @@ func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 	return err
 }
 
-const fobQuery = `
-WITH consecutive_swipes AS (
-    SELECT
-        s1.cardID AS first_card,
-        s2.cardID AS second_card,
-        s1.time AS swipe_time,
-        LEAD(s1.cardID) OVER (ORDER BY s1.time) AS next_card
-    FROM
-        swipes s1
-    JOIN
-        swipes s2 ON s1.time = s2.time - interval '1 second' AND s1.cardID <> s2.cardID
-)
-SELECT
-    DISTINCT ON (second_card) second_card
-FROM
-    consecutive_swipes
-WHERE
-    first_card = $1 AND next_card = second_card
-ORDER BY
-    second_card, swipe_time DESC;`
-
 // This really doesn't belong on the reporting sink, but it queries the reporting DB so it's convenient to put it here.
 func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int) (int, bool, error) {
-	var id int
-	err := s.db.QueryRow(ctx, fobQuery, granterFobID).Scan(&id)
+	var count int
+	var prevID int
+	err := s.db.QueryRow(ctx, "SELECT COUNT(id), MAX(id) FROM swipes WHERE cardID = $1 AND seenAt >= NOW() - INTERVAL '30 seconds' GROUP BY time ORDER BY time DESC", granterFobID).Scan(&count, &prevID)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
 		}
 		return 0, false, err
 	}
+
+	// No assigner swipe sequence yet
+	if count < 2 {
+		return 0, false, nil
+	}
+
+	// Look up the next swipe
+	var id int
+	err = s.db.QueryRow(ctx, "SELECT cardID FROM swipes WHERE id = $1 AND seenAt >= NOW() - INTERVAL '30 seconds'", prevID+1).Scan(&id)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			return 0, false, nil // errors.Is didn't work with the psql library for some reason
+		}
+		return 0, false, err
+	}
+
 	return id, true, nil
 }
 
