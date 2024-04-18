@@ -2,8 +2,11 @@ package reporting
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -97,6 +100,50 @@ func (s *ReportingSink) LastMetricTime() (time.Time, error) {
 func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
 	return err
+}
+
+const fobQuery = `
+WITH consecutive_swipes AS (
+    SELECT
+        s1.cardID AS card1,
+        s1.time AS time1,
+        s2.cardID AS card2,
+        s2.time AS time2,
+        s1.name
+    FROM
+        swipes s1
+    JOIN
+        swipes s2 ON s1.time = (s2.time - interval '15 seconds') AND s1.doorID = s2.doorID
+)
+SELECT
+    MAX(time1) AS last_swipe_time,
+    name,
+    card2
+FROM
+    consecutive_swipes
+WHERE
+    card1 <> card2
+    AND name = $1
+GROUP BY
+    name, card2
+ORDER BY
+    last_swipe_time DESC
+LIMIT 1;
+`
+
+// This really doesn't belong on the reporting sink, but it queries the reporting DB so it's convenient to put it here.
+func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterUUID string) (int64, bool, error) {
+	uuid := strings.ReplaceAll(granterUUID, "-", "") // the access controller can't store dashes
+
+	var id int64
+	err := s.db.QueryRow(ctx, fobQuery, uuid).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return id, true, nil
 }
 
 func (s *ReportingSink) Enabled() bool { return s != nil && s.db != nil }

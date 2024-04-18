@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -33,8 +32,6 @@ type Server struct {
 	EventsCache *events.EventCache
 	Assets      fs.FS
 	Templates   *template.Template
-
-	fobUpdateMut sync.Mutex
 }
 
 func (s *Server) NewHandler() http.Handler {
@@ -45,7 +42,6 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/signup", s.newSignupViewHandler())
 	mux.HandleFunc("/signup/register", s.newRegistrationFormHandler())
 	mux.HandleFunc("/profile", s.newProfileViewHandler())
-	mux.HandleFunc("/profile/keyfob", s.newKeyfobFormHandler())
 	mux.HandleFunc("/profile/contact", s.newContactInfoFormHandler())
 	mux.HandleFunc("/profile/stripe", s.newStripeCheckoutHandler())
 	mux.HandleFunc("/docuseal", s.newDocusealRedirectHandler())
@@ -54,7 +50,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
-	mux.HandleFunc("/admin/enable-building-access", onlyLeadership(s.newEnableBuildingAccessHandler()))
+	mux.HandleFunc("/admin/assign-fob", onlyLeadership(s.newAssignFobHandler()))
 	mux.HandleFunc("/admin/apply-discount", onlyLeadership(s.newApplyDiscountHandler()))
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
@@ -137,65 +133,6 @@ func (s *Server) newProfileViewHandler() http.HandlerFunc {
 	}
 }
 
-func (s *Server) newKeyfobFormHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fobIdStr := r.FormValue("fobid")
-		fobID, err := strconv.Atoi(fobIdStr)
-		if fobIdStr != "" && err != nil {
-			http.Error(w, "invalid fobid", 400)
-			return
-		}
-
-		// We can't safely allow concurrent key fob ID update operations,
-		// since Keycloak doesn't support optimistic concurrency control.
-		//
-		// This is because we need to first check if a fob is already in
-		// use before assigning it. Without any concurrency controls it
-		// would be possible to use timing attacks to re-assign existing
-		// fobs to multiple accounts.
-		//
-		// So let's set a reasonable timeout to avoid one user blocking
-		// everyone else's ability to update their fob.
-		ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
-		defer cancel()
-
-		s.fobUpdateMut.Lock()
-		defer s.fobUpdateMut.Unlock()
-
-		user, err := s.Keycloak.GetUser(ctx, getUserID(r))
-		if err != nil {
-			renderSystemError(w, "error while getting user: %s", err)
-			return
-		}
-		if user.FobID == fobID {
-			// fob didn't change
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-
-		if fobIdStr != "" {
-			conflict, err := s.Keycloak.BadgeIDInUse(ctx, fobID)
-			if err != nil {
-				renderSystemError(w, "error while checking if badge ID is in use: %s", err)
-				return
-			}
-			if conflict {
-				http.Error(w, "that badge ID is already in use", 400)
-				return
-			}
-		}
-
-		err = s.Keycloak.UpdateUserFobID(ctx, user, fobID)
-		if err != nil {
-			renderSystemError(w, "error while updating user: %s", err)
-			return
-		}
-
-		reporting.DefaultSink.Publish(user.Email, "UpdatedFobID", "user updated their fob ID from %d to %d", user.FobID, fobID)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
-
 func (s *Server) newContactInfoFormHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		first := r.FormValue("first")
@@ -268,7 +205,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 	}
 }
 
-func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
+func (s *Server) newAssignFobHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.URL.Query().Get("email"))
 		if err != nil {
@@ -276,14 +213,35 @@ func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
 			return
 		}
 
-		err = s.Keycloak.EnableUserBuildingAccess(r.Context(), user, getUserID(r))
+		fobID, ok, err := reporting.DefaultSink.LastFobAssignment(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while checking for fob swipes: %s", err)
+			return
+		}
+		if !ok {
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(`<meta http-equiv="refresh" content="3">\nSwipe your fob twice, then a new, unassigned fob...`))
+			return
+		}
+
+		exists, err := s.Keycloak.BadgeIDInUse(r.Context(), fobID)
+		if err != nil {
+			renderSystemError(w, "error while checking for fob assignment: %s", err)
+			return
+		}
+		if exists {
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(`That fob has already been assigned to another member!`))
+			return
+		}
+
+		err = s.Keycloak.EnableUserBuildingAccess(r.Context(), user, getUserID(r), fobID)
 		if err != nil {
 			renderSystemError(w, "error while writing to Keycloak: %s", err)
 			return
 		}
-
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("Done!"))
+		w.Write([]byte(`Done!`))
 	}
 }
 

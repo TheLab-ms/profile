@@ -39,7 +39,7 @@ func (d *Discord) NotifyNewMember(ctx context.Context, email string) {
 func (d *Discord) notifyNewMember(ctx context.Context, email string) error {
 	discountLinks := []string{}
 	for _, kind := range d.discounts.GetDiscountTypes() {
-		link := fmt.Sprintf("[Apply %s](%s/admin/apply-discount?email=%s&type=%s)", kind, d.env.SelfURL, email, kind)
+		link := fmt.Sprintf("[Apply %s discount](%s/admin/apply-discount?email=%s&type=%s)", kind, d.env.SelfURL, email, kind)
 		discountLinks = append(discountLinks, link)
 	}
 
@@ -55,7 +55,7 @@ func (d *Discord) notifyNewMember(ctx context.Context, email string) error {
 					},
 					map[string]any{
 						"name":  "Building Access",
-						"value": fmt.Sprintf("[Grant](%s/admin/enable-building-access?email=%s)", d.env.SelfURL, email),
+						"value": fmt.Sprintf("[Assign Fob](%s/admin/assign-fob?email=%s)", d.env.SelfURL, email),
 					},
 					map[string]any{
 						"name":  "Discount",
