@@ -269,7 +269,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 
 func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.FormValue("email"))
+		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.URL.Query().Get("email"))
 		if err != nil {
 			renderSystemError(w, "error while getting user: %s", err)
 			return
