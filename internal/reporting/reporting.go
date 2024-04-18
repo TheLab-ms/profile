@@ -2,7 +2,6 @@ package reporting
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -137,7 +136,7 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterUUID strin
 	var id int64
 	err := s.db.QueryRow(ctx, fobQuery, uuid).Scan(&id)
 	if err != nil {
-		if err.Error() == sql.ErrNoRows.Error() {
+		if strings.Contains(err.Error(), "no rows in result set") {
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
 		}
 		return 0, false, err
