@@ -121,7 +121,7 @@ FROM
     consecutive_swipes
 WHERE
     card1 <> card2
-    AND name = $1
+    AND cardID = $1
 GROUP BY
     name, card2
 ORDER BY
@@ -130,11 +130,9 @@ LIMIT 1;
 `
 
 // This really doesn't belong on the reporting sink, but it queries the reporting DB so it's convenient to put it here.
-func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterUUID string) (int64, bool, error) {
-	uuid := strings.ReplaceAll(granterUUID, "-", "") // the access controller can't store dashes
-
-	var id int64
-	err := s.db.QueryRow(ctx, fobQuery, uuid).Scan(&id)
+func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int) (int, bool, error) {
+	var id int
+	err := s.db.QueryRow(ctx, fobQuery, granterFobID).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason

@@ -92,7 +92,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	return nil
 }
 
-func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int64) (bool, error) {
+func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int) (bool, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return false, fmt.Errorf("getting token: %w", err)
@@ -161,7 +161,7 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 	return newUser(kcusers[0])
 }
 
-func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, approver string, fobID int64) error {
+func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, approver string, fobID int) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
@@ -169,7 +169,7 @@ func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, app
 
 	attr := safeGetAttrs(user.keycloakObject)
 	attr["buildingAccessApprover"] = []string{approver}
-	attr["keyfobID"] = []string{strconv.FormatInt(fobID, 10)}
+	attr["keyfobID"] = []string{strconv.Itoa(fobID)}
 
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }

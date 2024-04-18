@@ -14,7 +14,13 @@ func (s *Server) newAssignFobHandler() http.HandlerFunc {
 			return
 		}
 
-		fobID, ok, err := reporting.DefaultSink.LastFobAssignment(r.Context(), getUserID(r))
+		granter, err := s.Keycloak.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		fobID, ok, err := reporting.DefaultSink.LastFobAssignment(r.Context(), granter.FobID)
 		if err != nil {
 			renderSystemError(w, "error while checking for fob swipes: %s", err)
 			return
