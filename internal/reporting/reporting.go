@@ -110,17 +110,16 @@ WITH consecutive_swipes AS (
     FROM
         swipes s1
     JOIN
-        swipes s2 ON s1.time = s2.time - interval '30 seconds' AND s1.cardID <> s2.cardID
+        swipes s2 ON s1.time = s2.time - interval '1 second' AND s1.cardID <> s2.cardID
 )
-SELECT DISTINCT
-    second_card
+SELECT
+    DISTINCT ON (second_card) second_card
 FROM
     consecutive_swipes
 WHERE
     first_card = $1 AND next_card = second_card
 ORDER BY
-    swipe_time DESC
-LIMIT 1;`
+    second_card, swipe_time DESC;`
 
 // This really doesn't belong on the reporting sink, but it queries the reporting DB so it's convenient to put it here.
 func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int) (int, bool, error) {
