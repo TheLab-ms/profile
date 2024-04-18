@@ -3,7 +3,6 @@ package reporting
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -137,10 +136,10 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterUUID strin
 
 	var id int64
 	err := s.db.QueryRow(ctx, fobQuery, uuid).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, nil
-	}
 	if err != nil {
+		if err.Error() == sql.ErrNoRows.Error() {
+			return 0, false, nil // errors.Is didn't work with the psql library for some reason
+		}
 		return 0, false, err
 	}
 	return id, true, nil
