@@ -60,13 +60,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	discord := chatbot.NewDiscord(env)
-	kc := keycloak.New(env, discord)
-	go kc.RunReportingLoop()
-
 	// Price cache polls Stripe to load the configured prices, and is refreshed when they change (via webhook)
 	priceCache := &payment.PriceCache{}
 	priceCache.Start()
+
+	discord := chatbot.NewDiscord(env, priceCache)
+	kc := keycloak.New(env, discord)
+	go kc.RunReportingLoop()
 
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := events.NewCache(env)

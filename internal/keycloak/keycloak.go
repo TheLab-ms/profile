@@ -189,6 +189,18 @@ func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, app
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+func (k *Keycloak) ApplyDiscount(ctx context.Context, user *User, discountType string) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	attr := safeGetAttrs(user.keycloakObject)
+	attr["discountType"] = []string{discountType}
+
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
+}
+
 func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, user *User) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {

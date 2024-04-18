@@ -15,7 +15,7 @@ import (
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
 type PriceCache struct {
 	mut     sync.Mutex
-	state   []*Price
+	state   *cacheState
 	refresh chan struct{}
 }
 
@@ -24,7 +24,19 @@ func (p *PriceCache) Refresh() { p.refresh <- struct{}{} }
 func (p *PriceCache) GetPrices() []*Price {
 	p.mut.Lock()
 	defer p.mut.Unlock()
-	return p.state
+	if p.state == nil {
+		return nil
+	}
+	return p.state.Prices
+}
+
+func (p *PriceCache) GetDiscountTypes() []string {
+	p.mut.Lock()
+	defer p.mut.Unlock()
+	if p.state == nil {
+		return nil
+	}
+	return p.state.DiscountTypes
 }
 
 func (p *PriceCache) Start() {
@@ -34,16 +46,16 @@ func (p *PriceCache) Start() {
 		defer ticker.Stop()
 
 		for {
-			list := p.listPrices()
-			if len(list) == 0 || list == nil {
+			state := p.listPrices()
+			if len(state.Prices) == 0 || state == nil {
 				time.Sleep(time.Second)
 				log.Printf("failed to populate Stripe cache - will retry")
 				continue
 			}
 
 			p.mut.Lock()
-			p.state = list
-			log.Printf("updated cache of %d prices", len(list))
+			p.state = state
+			log.Printf("updated cache of %d prices", len(state.Prices))
 			p.mut.Unlock()
 
 			// Wait until the timer or an explicit refresh
@@ -55,7 +67,7 @@ func (p *PriceCache) Start() {
 	}()
 }
 
-func (p *PriceCache) listPrices() []*Price {
+func (p *PriceCache) listPrices() *cacheState {
 	// Discover product ID
 	products := product.Search(&stripe.ProductSearchParams{
 		SearchParams: stripe.SearchParams{
@@ -73,6 +85,7 @@ func (p *PriceCache) listPrices() []*Price {
 	coupons := coupon.List(&stripe.CouponListParams{})
 	coupsIDs := map[string]map[string]string{}      // mapping of price ID -> discount type -> coupon ID
 	coupsAmountOff := map[string]map[string]int64{} // mapping of price ID -> discount type -> discount
+	allDiscountTypes := []string{}
 	for coupons.Next() {
 		coup := coupons.Coupon()
 		if coup.Metadata == nil || coup.Metadata["priceID"] == "" || coup.Metadata["discountTypes"] == "" {
@@ -80,6 +93,7 @@ func (p *PriceCache) listPrices() []*Price {
 		}
 		priceID := coup.Metadata["priceID"]
 		discountTypes := strings.Split(coup.Metadata["discountTypes"], ",")
+		allDiscountTypes = append(allDiscountTypes, discountTypes...)
 		if coupsIDs[priceID] == nil {
 			coupsIDs[priceID] = map[string]string{}
 		}
@@ -123,7 +137,10 @@ func (p *PriceCache) listPrices() []*Price {
 		returns = append(returns, p)
 	}
 
-	return returns
+	return &cacheState{
+		Prices:        returns,
+		DiscountTypes: allDiscountTypes,
+	}
 }
 
 type Price struct {
@@ -132,4 +149,9 @@ type Price struct {
 	Price            float64
 	CouponIDs        map[string]string
 	CouponAmountsOff map[string]int64
+}
+
+type cacheState struct {
+	Prices        []*Price
+	DiscountTypes []string
 }

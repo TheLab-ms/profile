@@ -8,19 +8,25 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 )
 
-type Discord struct {
-	env *conf.Env
+type DiscountStore interface {
+	GetDiscountTypes() []string
 }
 
-func NewDiscord(env *conf.Env) *Discord {
+type Discord struct {
+	env       *conf.Env
+	discounts DiscountStore
+}
+
+func NewDiscord(env *conf.Env, d DiscountStore) *Discord {
 	if env.DiscordWebhookURL == "" {
 		return nil
 	}
-	return &Discord{env: env}
+	return &Discord{env: env, discounts: d}
 }
 
 func (d *Discord) NotifyNewMember(ctx context.Context, email string) {
@@ -31,12 +37,17 @@ func (d *Discord) NotifyNewMember(ctx context.Context, email string) {
 }
 
 func (d *Discord) notifyNewMember(ctx context.Context, email string) error {
+	discountLinks := []string{}
+	for _, kind := range d.discounts.GetDiscountTypes() {
+		link := fmt.Sprintf("[Apply %s](%s/admin/apply-discount?email=%s&type=%s)", kind, d.env.SelfURL, email, kind)
+		discountLinks = append(discountLinks, link)
+	}
+
 	msg := map[string]any{
 		"username": "Profile App",
 		"content":  "A new account was created",
 		"embeds": []any{
 			map[string]any{
-				"title": "User",
 				"fields": []any{
 					map[string]any{
 						"name":  "Email",
@@ -44,7 +55,11 @@ func (d *Discord) notifyNewMember(ctx context.Context, email string) error {
 					},
 					map[string]any{
 						"name":  "Building Access",
-						"value": fmt.Sprintf("[Enable](%s/admin/enable-building-access?email=%s)", d.env.SelfURL, email),
+						"value": fmt.Sprintf("[Grant](%s/admin/enable-building-access?email=%s)", d.env.SelfURL, email),
+					},
+					map[string]any{
+						"name":  "Discount",
+						"value": strings.Join(discountLinks, " | "),
 					},
 				},
 			},

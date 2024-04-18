@@ -55,6 +55,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
 	mux.HandleFunc("/admin/enable-building-access", onlyLeadership(s.newEnableBuildingAccessHandler()))
+	mux.HandleFunc("/admin/apply-discount", onlyLeadership(s.newApplyDiscountHandler()))
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
@@ -276,6 +277,25 @@ func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
 		}
 
 		err = s.Keycloak.EnableUserBuildingAccess(r.Context(), user, getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while writing to Keycloak: %s", err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte("Done!"))
+	}
+}
+
+func (s *Server) newApplyDiscountHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.URL.Query().Get("email"))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		err = s.Keycloak.ApplyDiscount(r.Context(), user, r.URL.Query().Get("type"))
 		if err != nil {
 			renderSystemError(w, "error while writing to Keycloak: %s", err)
 			return
