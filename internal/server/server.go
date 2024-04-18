@@ -282,7 +282,7 @@ func (s *Server) newEnableBuildingAccessHandler() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("👍"))
+		w.Write([]byte("Done!"))
 	}
 }
 
