@@ -107,10 +107,12 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int)
 	err := s.db.QueryRow(ctx, "SELECT COUNT(id), MAX(id) FROM swipes WHERE cardID = $1 AND seenAt >= NOW() - INTERVAL '1 minute' GROUP BY time ORDER BY time DESC", granterFobID).Scan(&count, &prevID)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
+			log.Printf("no swipe found for granter's fob %d", granterFobID)
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
 		}
 		return 0, false, err
 	}
+	log.Printf("found previous swipe ID of %d with count=%d for granter %d", prevID, count, granterFobID)
 
 	// No assigner swipe sequence yet
 	if count < 2 {
@@ -122,6 +124,7 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int)
 	err = s.db.QueryRow(ctx, "SELECT cardID FROM swipes WHERE id = $1 AND seenAt >= NOW() - INTERVAL '1 minute'", prevID+1).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
+			log.Printf("no swipe found for new fob")
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
 		}
 		return 0, false, err
