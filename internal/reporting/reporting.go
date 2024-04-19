@@ -104,7 +104,7 @@ func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int) (int, bool, error) {
 	var count int
 	var prevID int
-	err := s.db.QueryRow(ctx, "SELECT COUNT(id), MAX(id) FROM swipes WHERE cardID = $1 AND seenAt >= NOW() - INTERVAL '30 seconds' GROUP BY time ORDER BY time DESC", granterFobID).Scan(&count, &prevID)
+	err := s.db.QueryRow(ctx, "SELECT COUNT(id), MAX(id) FROM swipes WHERE cardID = $1 AND seenAt >= NOW() - INTERVAL '1 minute' GROUP BY time ORDER BY time DESC", granterFobID).Scan(&count, &prevID)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
@@ -119,7 +119,7 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int)
 
 	// Look up the next swipe
 	var id int
-	err = s.db.QueryRow(ctx, "SELECT cardID FROM swipes WHERE id = $1 AND seenAt >= NOW() - INTERVAL '30 seconds'", prevID+1).Scan(&id)
+	err = s.db.QueryRow(ctx, "SELECT cardID FROM swipes WHERE id = $1 AND seenAt >= NOW() - INTERVAL '1 minute'", prevID+1).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
 			return 0, false, nil // errors.Is didn't work with the psql library for some reason
