@@ -27,7 +27,7 @@ func (s *Server) newAssignFobHandler() http.HandlerFunc {
 		}
 		if !ok {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(`<meta http-equiv="refresh" content="3">Swipe your fob twice, then a new, unassigned fob...<br><i>Leave this tab open during the process!</i>`))
+			w.Write([]byte(`<meta http-equiv="refresh" content="3">Swipe your fob, then a new / unassigned fob...<br><br><i>Leave this tab open during the process!</i>`))
 			return
 		}
 
