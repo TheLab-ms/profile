@@ -53,6 +53,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/admin/assign-fob", onlyLeadership(s.newAssignFobHandler()))
 	mux.HandleFunc("/admin/apply-discount", onlyLeadership(s.newApplyDiscountHandler()))
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
+	mux.HandleFunc("/api/prices", s.newPricingHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
 	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
 	return mux
