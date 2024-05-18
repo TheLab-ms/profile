@@ -36,7 +36,7 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 		Email:                  gocloak.PString(kcuser.Email),
 		EmailVerified:          *gocloak.BoolP(*kcuser.EmailVerified),
 		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActiveMember:           safeGetAttr(kcuser, "stripeID") != "" || safeGetAttr(kcuser, "nonBillable") != "",
+		ActiveMember:           safeGetAttr(kcuser, "stripeSubscriptionID") != "" || safeGetAttr(kcuser, "nonBillable") != "",
 		DiscountType:           safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
 		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
