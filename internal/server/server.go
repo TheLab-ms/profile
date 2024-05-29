@@ -21,7 +21,6 @@ import (
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
-	"github.com/TheLab-ms/profile/internal/pricing"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
@@ -122,7 +121,7 @@ func (s *Server) newProfileViewHandler() http.HandlerFunc {
 		viewData := map[string]any{
 			"page":            "profile",
 			"user":            user,
-			"prices":          pricing.CalculateDiscounts(user, s.PriceCache.GetPrices()),
+			"prices":          payment.CalculateDiscounts(user, s.PriceCache.GetPrices()),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
 			"stripePending":   etagString != "" && user.StripeETag < etag,
 		}

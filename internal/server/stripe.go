@@ -8,7 +8,7 @@ import (
 	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	"github.com/stripe/stripe-go/v75/checkout/session"
 
-	"github.com/TheLab-ms/profile/internal/pricing"
+	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
@@ -50,8 +50,8 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 
 		// Calculate specific pricing based on the member's profile
 		priceID := r.URL.Query().Get("price")
-		checkoutParams.LineItems = pricing.CalculateLineItems(user, priceID, s.PriceCache)
-		checkoutParams.Discounts = pricing.CalculateDiscount(user, priceID, s.PriceCache)
+		checkoutParams.LineItems = payment.CalculateLineItems(user, priceID, s.PriceCache)
+		checkoutParams.Discounts = payment.CalculateDiscount(user, priceID, s.PriceCache)
 		if checkoutParams.Discounts == nil {
 			// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
 			checkoutParams.AllowPromotionCodes = stripe.Bool(true)
@@ -59,7 +59,7 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 
 		checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 			Metadata:           map[string]string{"etag": etag},
-			BillingCycleAnchor: pricing.CalculateBillingCycleAnchor(user), // This enables migration from paypal
+			BillingCycleAnchor: payment.CalculateBillingCycleAnchor(user), // This enables migration from paypal
 		}
 		if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
 			// In this case, the member is already paid up - don't make them pay for the currenet period again
