@@ -20,18 +20,6 @@ import (
 	"github.com/TheLab-ms/profile/internal/server"
 )
 
-// TODO:
-// - Profile shows only whether or not you have a keyfob, and maybe when it was issued or the last time it was scanned
-// - Also message saying to ping folks to set up a new fob for you if you want
-// - For access granters, click a message in the discord message to start process
-//   - Tap your badge twice, then tap a new/unassigned badge
-//   - The browser window will poll and tell you when the badge has been linked
-
-// So we need:
-// - A new link in the message
-// - ...to a page viewed by the granter
-// - JS to poll an admin endpoint that checks for the fob swipes
-
 //go:embed assets/*
 var assets embed.FS
 
