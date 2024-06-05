@@ -1,4 +1,4 @@
-package payment
+package server
 
 import (
 	"bytes"
@@ -20,8 +20,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
-// NewWebhookHandler handles Stripe webhooks.
-func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) http.HandlerFunc {
+func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		payload, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -30,7 +29,7 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 			return
 		}
 
-		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), env.StripeWebhookKey)
+		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), s.Env.StripeWebhookKey)
 		if err != nil {
 			log.Printf("error while constructing Stripe webhook event: %s", err)
 			w.WriteHeader(400)
@@ -39,7 +38,7 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 
 		if strings.HasPrefix(string(event.Type), "price.") || strings.HasPrefix(string(event.Type), "coupon.") {
 			log.Printf("refreshing Stripe caches because a webhook was received that suggests things have changed")
-			pc.Kick()
+			s.PriceCache.Kick()
 			return
 		}
 
@@ -68,7 +67,7 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 		}
 		log.Printf("got Stripe subscription event for member %q, state=%s", customer.Email, sub.Status)
 
-		user, err := kc.GetUserByEmail(r.Context(), customer.Email)
+		user, err := s.Keycloak.GetUserByEmail(r.Context(), customer.Email)
 		if err != nil {
 			log.Printf("unable to get user by email address: %s", err)
 			w.WriteHeader(500)
@@ -76,9 +75,9 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 		}
 
 		// Clean up old paypal sub if it still exists
-		if env.PaypalClientID != "" && env.PaypalClientSecret != "" {
+		if s.Env.PaypalClientID != "" && s.Env.PaypalClientSecret != "" {
 			if user.PaypalSubscriptionID != "" { // this is removed by UpdateUserStripeInfo
-				err := cancelPaypal(r.Context(), env, user)
+				err := cancelPaypal(r.Context(), s.Env, user)
 				if err != nil {
 					log.Printf("unable to get cancel Paypal subscription: %s", err)
 					w.WriteHeader(500)
@@ -87,7 +86,7 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 			}
 		}
 
-		err = kc.UpdateUserStripeInfo(r.Context(), user, customer, sub)
+		err = s.Keycloak.UpdateUserStripeInfo(r.Context(), user, customer, sub)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
 			w.WriteHeader(500)

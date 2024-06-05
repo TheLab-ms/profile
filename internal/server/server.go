@@ -47,7 +47,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/secrets", s.newSecretIndexHandler())
 	mux.HandleFunc("/secrets/encrypt", s.newSecretEncryptionHandler())
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
-	mux.HandleFunc("/webhooks/stripe", payment.NewWebhookHandler(s.Env, s.Keycloak, s.PriceCache))
+	mux.HandleFunc("/webhooks/stripe", s.newStripeWebhookHandler())
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
 	mux.HandleFunc("/admin/assign-fob", onlyLeadership(s.newAssignFobHandler()))
 	mux.HandleFunc("/admin/apply-discount", onlyLeadership(s.newApplyDiscountHandler()))
