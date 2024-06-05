@@ -63,7 +63,7 @@ func main() {
 	// Price cache polls Stripe to load the configured prices, and is refreshed when they change (via webhook)
 	ctx := context.TODO()
 	priceCache := payment.NewPriceCache()
-	priceCache.Run(ctx)
+	go priceCache.Run(ctx)
 
 	discord := chatbot.NewDiscord(env, priceCache)
 	kc := keycloak.New(env, discord)
@@ -71,7 +71,7 @@ func main() {
 
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := events.NewCache(env)
-	eventsCache.Run(ctx)
+	go eventsCache.Run(ctx)
 
 	// Serve prometheus metrics on a separate port
 	go func() {
