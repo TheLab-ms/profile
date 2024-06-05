@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/timeutil"
 	"github.com/teambition/rrule-go"
 )
 
 // EventCache polls Discord events, caches them in-memory, and materializes recurring events.
 type EventCache struct {
+	timeutil.Loop
 	mut   sync.Mutex
 	state []*event
 
@@ -26,7 +28,10 @@ type EventCache struct {
 }
 
 func NewCache(env *conf.Env) *EventCache {
-	return &EventCache{env: env, baseURL: "https://discord.com"}
+	ec := &EventCache{env: env, baseURL: "https://discord.com"}
+	ec.Loop.Handler = ec.fillCache
+	ec.Loop.Interval = env.DiscordInterval
+	return ec
 }
 
 func (e *EventCache) GetEvents(until time.Time) ([]*Event, error) {
@@ -110,28 +115,12 @@ func (e *EventCache) GetEvents(until time.Time) ([]*Event, error) {
 	return expanded, nil
 }
 
-func (e *EventCache) Start(ctx context.Context) {
+func (e *EventCache) fillCache(ctx context.Context) {
 	// Don't run if not configured
 	if e.env.DiscordBotToken == "" || e.env.DiscordGuildID == "" {
 		return
 	}
 
-	go func() {
-		ticker := time.NewTicker(e.env.DiscordInterval)
-		defer ticker.Stop()
-
-		for {
-			e.fillCache(ctx)
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-}
-
-func (e *EventCache) fillCache(ctx context.Context) {
 	list := e.listEvents(ctx)
 
 	e.mut.Lock()

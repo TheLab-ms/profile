@@ -39,7 +39,7 @@ func NewWebhookHandler(env *conf.Env, kc *keycloak.Keycloak, pc *PriceCache) htt
 
 		if strings.HasPrefix(string(event.Type), "price.") || strings.HasPrefix(string(event.Type), "coupon.") {
 			log.Printf("refreshing Stripe caches because a webhook was received that suggests things have changed")
-			pc.Refresh()
+			pc.Kick()
 			return
 		}
 

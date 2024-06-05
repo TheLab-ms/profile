@@ -1,11 +1,13 @@
 package payment
 
 import (
+	"context"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/TheLab-ms/profile/internal/timeutil"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/coupon"
 	"github.com/stripe/stripe-go/v75/price"
@@ -14,12 +16,17 @@ import (
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
 type PriceCache struct {
-	mut     sync.Mutex
-	state   *cacheState
-	refresh chan struct{}
+	timeutil.Loop
+	mut   sync.Mutex
+	state *cacheState
 }
 
-func (p *PriceCache) Refresh() { p.refresh <- struct{}{} }
+func NewPriceCache() *PriceCache {
+	p := &PriceCache{}
+	p.Loop.Handler = p.fillCache
+	p.Loop.Interval = time.Hour
+	return p
+}
 
 func (p *PriceCache) GetPrices() []*Price {
 	p.mut.Lock()
@@ -39,32 +46,16 @@ func (p *PriceCache) GetDiscountTypes() []string {
 	return p.state.DiscountTypes
 }
 
-func (p *PriceCache) Start() {
-	p.refresh = make(chan struct{}, 1)
-	go func() {
-		ticker := time.NewTicker(time.Minute * 15)
-		defer ticker.Stop()
+func (p *PriceCache) fillCache(ctx context.Context) {
+	state := p.listPrices()
+	if state == nil {
+		log.Fatalf("failed to populate Stripe cache - will retry")
+	}
 
-		for {
-			state := p.listPrices()
-			if len(state.Prices) == 0 || state == nil {
-				time.Sleep(time.Second)
-				log.Printf("failed to populate Stripe cache - will retry")
-				continue
-			}
-
-			p.mut.Lock()
-			p.state = state
-			log.Printf("updated cache of %d prices", len(state.Prices))
-			p.mut.Unlock()
-
-			// Wait until the timer or an explicit refresh
-			select {
-			case <-ticker.C:
-			case <-p.refresh:
-			}
-		}
-	}()
+	p.mut.Lock()
+	p.state = state
+	log.Printf("updated cache of %d prices", len(state.Prices))
+	p.mut.Unlock()
 }
 
 func (p *PriceCache) listPrices() *cacheState {
