@@ -1,14 +1,47 @@
 package payment
 
 import (
+	"context"
+	"strconv"
 	"time"
 
 	"github.com/stripe/stripe-go/v75"
 
+	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 )
 
-func CalculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionLineItemParams {
+// NewCheckoutSessionParams sets the various Stripe checkout options for a new registering member.
+func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *conf.Env, pc *PriceCache, priceID string) *stripe.CheckoutSessionParams {
+	etag := strconv.FormatInt(user.StripeETag+1, 10)
+	checkoutParams := &stripe.CheckoutSessionParams{
+		Mode:          stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		CustomerEmail: &user.Email,
+		SuccessURL:    stripe.String(env.SelfURL + "/profile?i=" + etag),
+		CancelURL:     stripe.String(env.SelfURL + "/profile"),
+	}
+	checkoutParams.Context = ctx
+
+	// Calculate specific pricing based on the member's profile
+	checkoutParams.LineItems = calculateLineItems(user, priceID, pc)
+	checkoutParams.Discounts = calculateDiscount(user, priceID, pc)
+	if checkoutParams.Discounts == nil {
+		// Stripe API doesn't allow Discounts and AllowPromotionCodes to be set
+		checkoutParams.AllowPromotionCodes = stripe.Bool(true)
+	}
+
+	checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
+		Metadata:           map[string]string{"etag": etag},
+		BillingCycleAnchor: calculateBillingCycleAnchor(user), // This enables migration from paypal
+	}
+	if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
+		// In this case, the member is already paid up - don't make them pay for the currenet period again
+		checkoutParams.SubscriptionData.ProrationBehavior = stripe.String("none")
+	}
+	return checkoutParams
+}
+
+func calculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionLineItemParams {
 	// Migrate existing paypal users at their current rate
 	if priceID == "paypal" {
 		interval := "month"
@@ -37,7 +70,7 @@ func CalculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*
 	}}
 }
 
-func CalculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionDiscountParams {
+func calculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionDiscountParams {
 	if user.DiscountType == "" || priceID == "" {
 		return nil
 	}
@@ -51,26 +84,7 @@ func CalculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*s
 	return nil
 }
 
-func CalculateDiscounts(user *keycloak.User, prices []*Price) []*Price {
-	if user.DiscountType == "" {
-		return prices
-	}
-	out := make([]*Price, len(prices))
-	for i, price := range prices {
-		amountOff := price.CouponAmountsOff[user.DiscountType]
-		out[i] = &Price{
-			ID:               price.ID,
-			ProductID:        price.ProductID,
-			Annual:           price.Annual,
-			Price:            price.Price - (float64(amountOff) / 100),
-			CouponIDs:        price.CouponIDs,
-			CouponAmountsOff: price.CouponAmountsOff,
-		}
-	}
-	return out
-}
-
-func CalculateBillingCycleAnchor(user *keycloak.User) *int64 {
+func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
 	if user.LastPaypalTransactionPrice == 0 {
 		return nil
 	}
@@ -91,4 +105,23 @@ func CalculateBillingCycleAnchor(user *keycloak.User) *int64 {
 
 	ts := end.Unix()
 	return &ts
+}
+
+func CalculateDiscounts(user *keycloak.User, prices []*Price) []*Price {
+	if user.DiscountType == "" {
+		return prices
+	}
+	out := make([]*Price, len(prices))
+	for i, price := range prices {
+		amountOff := price.CouponAmountsOff[user.DiscountType]
+		out[i] = &Price{
+			ID:               price.ID,
+			ProductID:        price.ProductID,
+			Annual:           price.Annual,
+			Price:            price.Price - (float64(amountOff) / 100),
+			CouponIDs:        price.CouponIDs,
+			CouponAmountsOff: price.CouponAmountsOff,
+		}
+	}
+	return out
 }
