@@ -1,47 +1,15 @@
-package server
+package datamodel
 
 import (
-	"encoding/json"
-	"net/http"
-	"time"
-
 	"github.com/TheLab-ms/profile/internal/payment"
 )
 
-func (s *Server) newListEventsHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		events, err := s.EventsCache.GetEvents(time.Now().Add(time.Hour * 24 * 60))
-		if err != nil {
-			renderSystemError(w, "getting cached events: %s", err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
-		json.NewEncoder(w).Encode(events)
-	}
+type Prices struct {
+	Yearly  Price `json:"yearly"`
+	Monthly Price `json:"monthly"`
 }
 
-func (s *Server) newPricingHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		items := s.PriceCache.GetPrices()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
-		json.NewEncoder(w).Encode(newPrices(items))
-	}
-}
-
-type prices struct {
-	Yearly  price `json:"yearly"`
-	Monthly price `json:"monthly"`
-}
-
-func newPrices(items []*payment.Price) *prices {
+func NewPrices(items []*payment.Price) *Prices {
 	// Pick the first yearly and monthly price that we find in the cache
 	// based on no particular order (since we expect to only have one of each)
 	var yearly, monthly *payment.Price
@@ -61,7 +29,7 @@ func newPrices(items []*payment.Price) *prices {
 
 	// Convert to our API response types
 	// When selecting discounts, pick the smallest i.e. most expensive.
-	prices := &prices{}
+	prices := &Prices{}
 	if yearly != nil {
 		prices.Yearly.Price = yearly.Price
 
@@ -91,7 +59,7 @@ func newPrices(items []*payment.Price) *prices {
 	return prices
 }
 
-type price struct {
+type Price struct {
 	Price      float64 `json:"price"`
 	Discounted float64 `json:"discount"`
 }

@@ -1,4 +1,4 @@
-package server
+package datamodel
 
 import (
 	"testing"
@@ -27,13 +27,13 @@ func TestNewPrices(t *testing.T) {
 		},
 	}
 
-	actual := newPrices(items)
-	exp := &prices{
-		Yearly: price{
+	actual := NewPrices(items)
+	exp := &Prices{
+		Yearly: Price{
 			Price:      234,
 			Discounted: 230.5,
 		},
-		Monthly: price{
+		Monthly: Price{
 			Price:      123,
 			Discounted: 120,
 		},
@@ -41,5 +41,5 @@ func TestNewPrices(t *testing.T) {
 	assert.Equal(t, exp, actual)
 
 	// also doesn't panic when empty
-	newPrices(nil)
+	NewPrices(nil)
 }
