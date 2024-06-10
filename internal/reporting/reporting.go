@@ -104,7 +104,7 @@ func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 
 func (s *ReportingSink) GetLatestSwipe(ctx context.Context, name string, last time.Time) (time.Time, bool, error) {
 	swipe := time.Time{}
-	err := s.db.QueryRow(ctx, "SELECT DISTINCT time FROM swipes WHERE name == $1 time > $2 ORDER BY time DESC LIMIT 1", name, last).Scan(&swipe)
+	err := s.db.QueryRow(ctx, "SELECT time FROM swipes WHERE name == $1 'time' > $2 ORDER BY time DESC LIMIT 1", name, last).Scan(&swipe)
 	if errors.Is(err, sql.ErrNoRows) {
 		return swipe, false, nil
 	}
