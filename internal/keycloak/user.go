@@ -16,6 +16,7 @@ type User struct {
 	AdminNotes                                string // for leadership only!
 	BuildingAccessApproved                    bool
 	SignupTime                                time.Time
+	LastSwipeTime                             time.Time
 
 	StripeCustomerID      string
 	StripeSubscriptionID  string
@@ -50,6 +51,11 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 	signupTime, _ := strconv.Atoi(safeGetAttr(kcuser, "signupEpochTimeUTC"))
 	if signupTime > 0 {
 		user.SignupTime = time.Unix(int64(signupTime), 0).Local()
+	}
+
+	lastSwipeTime, _ := strconv.Atoi(safeGetAttr(kcuser, "lastSwipeTime"))
+	if lastSwipeTime > 0 {
+		user.LastSwipeTime = time.Unix(int64(lastSwipeTime), 0).Local()
 	}
 
 	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {

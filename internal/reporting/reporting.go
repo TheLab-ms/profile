@@ -2,6 +2,8 @@ package reporting
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -98,6 +100,15 @@ func (s *ReportingSink) LastMetricTime() (time.Time, error) {
 func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
 	return err
+}
+
+func (s *ReportingSink) GetLatestSwipe(ctx context.Context, name string, last time.Time) (time.Time, bool, error) {
+	swipe := time.Time{}
+	err := s.db.QueryRow(ctx, "SELECT DISTINCT time FROM swipes WHERE name == $1 time > $2 ORDER BY time DESC LIMIT 1", name, last).Scan(&swipe)
+	if errors.Is(err, sql.ErrNoRows) {
+		return swipe, false, nil
+	}
+	return swipe, true, err
 }
 
 // This really doesn't belong on the reporting sink, but it queries the reporting DB so it's convenient to put it here.

@@ -209,6 +209,17 @@ func (k *Keycloak) UpdateUserName(ctx context.Context, user *User, first, last s
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+func (k *Keycloak) UpdateLastSwipeTime(ctx context.Context, user *User, ts time.Time) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	attr := safeGetAttrs(user.keycloakObject)
+	attr["lastSwipeTime"] = []string{ts.Format(time.RFC3339)}
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
+}
+
 func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, customer *stripe.Customer, sub *stripe.Subscription) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
