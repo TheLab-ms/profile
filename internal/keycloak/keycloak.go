@@ -216,7 +216,7 @@ func (k *Keycloak) UpdateLastSwipeTime(ctx context.Context, user *User, ts time.
 	}
 
 	attr := safeGetAttrs(user.keycloakObject)
-	attr["lastSwipeTime"] = []string{ts.Format(time.RFC3339)}
+	attr["lastSwipeTime"] = []string{strconv.Itoa(int(ts.UTC().Unix()))}
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 

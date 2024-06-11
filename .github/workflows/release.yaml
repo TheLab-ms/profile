@@ -50,11 +50,21 @@ jobs:
           tags: |
             type=sha
 
-      - name: Build and push Docker image
+      - name: Push profile-server image
         uses: docker/build-push-action@v5
         with:
           push: true
           file: ./cmd/profile-server
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Push visit-check-job image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/visit-check-job
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -71,6 +81,7 @@ jobs:
         run: |
           echo $KUBE_CONFIG | base64 -d > kc.yaml
           kubectl --kubeconfig kc.yaml set image deployment/profile svc=$NEW_IMAGE
+          kubectl --kubeconfig kc.yaml set image cronjob/visit-check-job svc=$NEW_IMAGE
         env:
           KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
           NEW_IMAGE: ${{ needs.push.outputs.tag }}

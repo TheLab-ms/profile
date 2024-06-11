@@ -103,7 +103,7 @@ func (s *ReportingSink) WriteMetrics(counters *Counters) error {
 func (s *ReportingSink) GetLatestSwipe(ctx context.Context, name string, last time.Time) (time.Time, bool, error) {
 	swipe := time.Time{}
 	err := s.db.QueryRow(ctx, "SELECT time FROM swipes WHERE name = $1 AND time > $2 ORDER BY time DESC LIMIT 1", name, last).Scan(&swipe)
-	if strings.Contains(err.Error(), "no rows in result set") {
+	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		return swipe, false, nil // errors.Is didn't work with the psql library for some reason
 	}
 	return swipe, true, err

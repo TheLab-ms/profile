@@ -10,7 +10,6 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile"
-	"github.com/TheLab-ms/profile/internal/attendance"
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
@@ -55,9 +54,6 @@ func main() {
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := events.NewCache(env)
 	go eventsCache.Run(ctx)
-
-	al := attendance.NewLoop(kc, reporting.DefaultSink)
-	go al.Run(ctx)
 
 	// Serve prometheus metrics on a separate port
 	go func() {
