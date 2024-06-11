@@ -190,7 +190,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 		cw.Write([]string{
 			"First", "Last", "Email", "Email Verified", "Waiver Signed",
 			"Stripe ID", "Stripe Subscription ID", "Discount Type", "Keyfob ID",
-			"Active Member", "Signup Timestamp", "Paypal Migration",
+			"Active Member", "Signup Timestamp", "Last Visit Timestamp", "Paypal Migration",
 		})
 
 		for _, user := range users {
@@ -199,7 +199,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
 				user.StripeCustomerID, user.StripeSubscriptionID, user.DiscountType,
 				strconv.Itoa(user.FobID), strconv.FormatBool(user.ActiveMember),
-				user.SignupTime.Format(time.RFC3339), strconv.FormatBool(user.PaypalSubscriptionID != ""),
+				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339), strconv.FormatBool(user.PaypalSubscriptionID != ""),
 			})
 		}
 		cw.Flush() // avoid buffering entire response in memory
