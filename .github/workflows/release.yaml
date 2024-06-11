@@ -54,7 +54,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./cmd/profile-server
+          file: ./cmd/profile-server/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./cmd/visit-check-job
+          file: ./cmd/visit-check-job/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
