@@ -8,7 +8,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build
 
 FROM scratch
-COPY --from=builder /app/profile /profile
+COPY --from=builder /app/profile-server /profile-server
 COPY --from=builder /app/age/age /bin/age
 ENV PATH=/bin
-ENTRYPOINT ["/profile"]
+ENTRYPOINT ["/profile-server"]

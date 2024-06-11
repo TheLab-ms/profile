@@ -30,6 +30,10 @@ func NewLoop(kc *keycloak.Keycloak, r *reporting.ReportingSink) *Loop {
 }
 
 func (l *Loop) tick(ctx context.Context) {
+	if !l.reporting.Enabled() {
+		return
+	}
+
 	log.Printf("starting to scrape latest badge swipe times for each active user")
 
 	users, err := l.keycloak.ListUsers(ctx)

@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stripe/stripe-go/v75"
 
+	"github.com/TheLab-ms/profile"
 	"github.com/TheLab-ms/profile/internal/attendance"
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
@@ -20,23 +19,6 @@ import (
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"github.com/TheLab-ms/profile/internal/server"
 )
-
-//go:embed assets/*
-var assets embed.FS
-
-//go:embed templates/*.html
-var rawTemplates embed.FS
-
-var templates *template.Template
-
-func init() {
-	// Parse the embedded templates once during initialization
-	var err error
-	templates, err = template.ParseFS(rawTemplates, "templates/*")
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func main() {
 	// Load the app's configuration from env vars bound to the config struct through magic
@@ -88,8 +70,8 @@ func main() {
 		Keycloak:    kc,
 		PriceCache:  priceCache,
 		EventsCache: eventsCache,
-		Assets:      assets,
-		Templates:   templates,
+		Assets:      profile.Assets,
+		Templates:   profile.Templates,
 	}
 	log.Fatal(http.ListenAndServe(":8080", svr.NewHandler()))
 }
