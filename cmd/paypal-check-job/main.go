@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
@@ -47,20 +48,33 @@ func run() error {
 		}
 		limiter.Wait(ctx)
 
-		active, err := getSubscriptionMetadata(ctx, env, user.PaypalSubscriptionID)
+		current, err := getSubscriptionMetadata(ctx, env, user.PaypalSubscriptionID)
 		if err != nil {
 			log.Printf("error while getting paypal subscription for member %s: %s", user.Email, err)
 			continue
 		}
+		active := current.Status != "CANCELLED"
+		price, _ := strconv.ParseFloat(current.Billing.LastPayment.Amount.Value, 64)
+
 		log.Printf("paypal subscription %s is in state active=%t for member %s who last visited on %s", user.PaypalSubscriptionID, active, user.Email, user.LastSwipeTime.Format("2006-01-02"))
-		if active {
+		if !active {
+			err = kc.Deactivate(ctx, user.User)
+			if err != nil {
+				log.Printf("error while deactivating user: %s", err)
+			}
 			continue
 		}
 
-		err = kc.Deactivate(ctx, user.User)
-		if err != nil {
-			log.Printf("error while deactivating user: %s", err)
+		if price == user.LastPaypalTransactionPrice && current.Billing.LastPayment.Time == user.LastPaypalTransactionTime {
+			continue
 		}
+
+		err = kc.UpdatePaypalMetadata(ctx, user.User, price, current.Billing.LastPayment.Time)
+		if err != nil {
+			log.Printf("error while updating user Paypal metadata: %s", err)
+			continue
+		}
+		log.Printf("updated paypal metadata for member: %s", user.Email)
 	}
 
 	log.Printf("done!")
@@ -68,33 +82,49 @@ func run() error {
 	return nil
 }
 
-func getSubscriptionMetadata(ctx context.Context, env *conf.Env, id string) (bool, error) {
+func getSubscriptionMetadata(ctx context.Context, env *conf.Env, id string) (*paypalSubscription, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", id), nil)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
 
 	getResp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	defer getResp.Body.Close()
 
 	if getResp.StatusCode == 404 {
-		return false, nil
+		return nil, nil
 	}
 	if getResp.StatusCode > 299 {
 		body, _ := io.ReadAll(getResp.Body)
-		return false, fmt.Errorf("error response %d from Paypal when getting subscription: %s", getResp.StatusCode, body)
+		return nil, fmt.Errorf("error response %d from Paypal when getting subscription: %s", getResp.StatusCode, body)
 	}
 
-	current := struct {
-		Status string `json:"status"`
-	}{}
+	current := &paypalSubscription{}
 	err = json.NewDecoder(getResp.Body).Decode(&current)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return current.Status != "CANCELLED", nil
+	return current, nil
+}
+
+type paypalSubscription struct {
+	Status  string            `json:"status"`
+	Billing paypalBillingInfo `json:"billing_info"`
+}
+
+type paypalBillingInfo struct {
+	LastPayment paypalPayment `json:"last_payment"`
+}
+
+type paypalPayment struct {
+	Amount paypalAmount `json:"amount"`
+	Time   time.Time    `json:"time"`
+}
+
+type paypalAmount struct {
+	Value string `json:"value"`
 }

@@ -178,31 +178,23 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 			return
 		}
 
-		if r.Header.Get("Accept") == "application/json" {
-			w.Header().Add("Content-Type", "application/json")
-			enc := json.NewEncoder(w)
-			enc.SetIndent("  ", "  ")
-			enc.Encode(&users)
-			return
-		}
-
 		cw := csv.NewWriter(w)
 		cw.Write([]string{
 			"First", "Last", "Email", "Email Verified", "Waiver Signed",
-			"Stripe ID", "Stripe Subscription ID", "Discount Type", "Keyfob ID",
-			"Active Member", "Signup Timestamp", "Last Visit Timestamp", "Paypal Migration",
+			"Payment Status", "Building Access Enabled", "Discount Type", "Keyfob ID",
+			"Signup Timestamp", "Last Visit Timestamp",
 		})
 
 		for _, user := range users {
 			cw.Write([]string{
 				user.First, user.Last, user.Email,
 				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
-				user.StripeCustomerID, user.StripeSubscriptionID, user.DiscountType,
-				strconv.Itoa(user.FobID), strconv.FormatBool(user.ActiveMember),
-				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339), strconv.FormatBool(user.PaypalSubscriptionID != ""),
+				user.PaymentStatus(), strconv.FormatBool(user.ActiveMember),
+				user.DiscountType, strconv.Itoa(user.FobID),
+				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339),
 			})
 		}
-		cw.Flush() // avoid buffering entire response in memory
+		cw.Flush()
 	}
 }
 

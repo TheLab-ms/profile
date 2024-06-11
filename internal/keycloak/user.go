@@ -12,6 +12,7 @@ type User struct {
 	First, Last, Email                        string
 	FobID                                     int
 	EmailVerified, SignedWaiver, ActiveMember bool
+	NonBillable                               bool
 	DiscountType                              string
 	AdminNotes                                string // for leadership only!
 	BuildingAccessApproved                    bool
@@ -37,7 +38,8 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 		Email:                  gocloak.PString(kcuser.Email),
 		EmailVerified:          *gocloak.BoolP(*kcuser.EmailVerified),
 		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActiveMember:           safeGetAttr(kcuser, "stripeSubscriptionID") != "" || safeGetAttr(kcuser, "nonBillable") != "",
+		ActiveMember:           safeGetAttr(kcuser, "stripeSubscriptionID") != "" || safeGetAttr(kcuser, "nonBillable") != "", // TODO: Remove
+		NonBillable:            safeGetAttr(kcuser, "nonBillable") != "",
 		DiscountType:           safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
 		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
@@ -59,11 +61,7 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 	}
 
 	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
-		s := struct {
-			Price         float64
-			TimeRFC3339   string
-			TransactionID string
-		}{}
+		s := paypalMetadata{}
 		err := json.Unmarshal([]byte(js), &s)
 		if err != nil {
 			return nil, err
@@ -80,7 +78,26 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 	return user, nil
 }
 
+type paypalMetadata struct {
+	Price         float64
+	TimeRFC3339   string
+	TransactionID string
+}
+
 type ExtendedUser struct {
 	*User
 	ActiveMember bool
+}
+
+func (u *User) PaymentStatus() string {
+	if u.NonBillable {
+		return "NonBillable"
+	}
+	if u.StripeSubscriptionID != "" {
+		return "StripeActive"
+	}
+	if u.PaypalSubscriptionID != "" {
+		return "Paypal"
+	}
+	return "InactiveOrUnknown"
 }

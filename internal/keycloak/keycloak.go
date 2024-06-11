@@ -2,6 +2,7 @@ package keycloak
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -217,6 +218,26 @@ func (k *Keycloak) UpdateLastSwipeTime(ctx context.Context, user *User, ts time.
 
 	attr := safeGetAttrs(user.keycloakObject)
 	attr["lastSwipeTime"] = []string{strconv.Itoa(int(ts.UTC().Unix()))}
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
+}
+
+func (k *Keycloak) UpdatePaypalMetadata(ctx context.Context, user *User, price float64, lastTX time.Time) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	buf, err := json.Marshal(&paypalMetadata{
+		Price:         price,
+		TimeRFC3339:   lastTX.Format(time.RFC3339),
+		TransactionID: user.PaypalSubscriptionID,
+	})
+	if err != nil {
+		return fmt.Errorf("encoding: %w", err)
+	}
+
+	attr := safeGetAttrs(user.keycloakObject)
+	attr["paypalMigrationMetadata"] = []string{string(buf)}
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
