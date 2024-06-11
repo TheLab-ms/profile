@@ -47,7 +47,7 @@ jobs:
         id: profile-server-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/profile
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile
           tags: |
             type=sha
 
@@ -65,7 +65,7 @@ jobs:
         id: visit-check-job-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/profile/visit-check-job
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/visit-check-job
           tags: |
             type=sha
 
