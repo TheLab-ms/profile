@@ -231,6 +231,7 @@ func (k *Keycloak) Deactivate(ctx context.Context, user *User) error {
 		return err
 	}
 
+	// TODO: Leaky abstraction
 	reporting.DefaultSink.Publish(user.Email, "PayPalSubscriptionCanceled", "We observed the member's PayPal status in an inactive state")
 	return nil
 }
