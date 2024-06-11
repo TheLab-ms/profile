@@ -220,6 +220,21 @@ func (k *Keycloak) UpdateLastSwipeTime(ctx context.Context, user *User, ts time.
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+func (k *Keycloak) Deactivate(ctx context.Context, user *User) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject.ID, k.env.KeycloakMembersGroupID)
+	if err != nil {
+		return err
+	}
+
+	reporting.DefaultSink.Publish(user.Email, "PayPalSubscriptionCanceled", "We observed the member's PayPal status in an inactive state")
+	return nil
+}
+
 func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, customer *stripe.Customer, sub *stripe.Subscription) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {

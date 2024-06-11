@@ -79,6 +79,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Construct paypal-check-job metadata
+        id: paypal-check-job-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/paypal-check-job
+          tags: |
+            type=sha
+
+      - name: Push paypal-check-job image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/paypal-check-job/Dockerfile
+          tags: ${{ steps.paypal-check-job-meta.outputs.tags }}
+          labels: ${{ steps.paypal-check-job-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
