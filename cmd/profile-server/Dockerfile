@@ -5,7 +5,7 @@ ADD go.mod .
 ADD go.sum .
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build
+RUN CGO_ENABLED=0 go build ./cmd/profile-server
 
 FROM scratch
 COPY --from=builder /app/profile-server /profile-server
