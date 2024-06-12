@@ -44,8 +44,7 @@ func (s *Server) newSecretIndexHandler() http.HandlerFunc {
 
 		if (p.Recipient == nil && !isLeadership) || (p.Recipient != nil && *p.Recipient != userID) {
 			p.Value = "" // just in case the template somehow leaks the value
-			w.Header().Add("Content-Type", "text/html")
-			s.Templates.ExecuteTemplate(w, "secret-unauth.html", p)
+			http.Error(w, "unauthorized!", 403)
 			return
 		}
 
