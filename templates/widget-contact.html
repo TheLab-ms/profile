@@ -17,6 +17,12 @@
                     class="form-control" />
             </div>
 
+            {{ if .user.DiscordUserID }}
+            <div class="form-group">
+                <i>Discord is linked!</i>
+            </div>
+            {{ end }}
+
             <div class="btn-toolbar" role="toolbar">
                 <input type="submit" value="Update" class="btn btn-default" />
             </div>
