@@ -482,6 +482,9 @@ func (k *Keycloak) reportMetrics() {
 
 	counters := reporting.Counters{}
 	for _, user := range users {
+		if !user.EmailVerified {
+			counters.UnverifiedAccounts++
+		}
 		if user.ActiveMember {
 			counters.ActiveMembers++
 		} else {

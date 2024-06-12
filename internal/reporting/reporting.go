@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS profile_metrics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profile_metrics_time ON profile_metrics (time);
+ALTER TABLE profile_metrics ADD COLUMN IF NOT EXISTS unverified_accounts int;
 `
 
 // ReportingSink buffers and periodically flushes meaningful user actions to postgres.
@@ -96,7 +97,7 @@ func (s *ReportingSink) LastMetricTime() (time.Time, error) {
 }
 
 func (s *ReportingSink) WriteMetrics(counters *Counters) error {
-	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members) VALUES ($1, $2, $3)", time.Now(), counters.ActiveMembers, counters.InactiveMembers)
+	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members, unverified_accounts) VALUES ($1, $2, $3, $4)", time.Now(), counters.ActiveMembers, counters.InactiveMembers, counters.UnverifiedAccounts)
 	return err
 }
 
@@ -139,8 +140,9 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int)
 func (s *ReportingSink) Enabled() bool { return s != nil && s.db != nil }
 
 type Counters struct {
-	ActiveMembers   int64
-	InactiveMembers int64
+	ActiveMembers      int64
+	InactiveMembers    int64
+	UnverifiedAccounts int64
 }
 
 type event struct {
