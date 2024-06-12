@@ -1,10 +1,43 @@
 package server
 
 import (
+	"encoding/csv"
+	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
+
+func (s *Server) newAdminDumpHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := s.Keycloak.ListUsers(r.Context())
+		if err != nil {
+			log.Printf("error while listing users: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		cw := csv.NewWriter(w)
+		cw.Write([]string{
+			"First", "Last", "Email", "Email Verified", "Waiver Signed",
+			"Payment Status", "Building Access Enabled", "Discount Type", "Keyfob ID",
+			"Signup Timestamp", "Last Visit Timestamp",
+		})
+
+		for _, user := range users {
+			cw.Write([]string{
+				user.First, user.Last, user.Email,
+				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
+				user.PaymentStatus(), strconv.FormatBool(user.ActiveMember),
+				user.DiscountType, strconv.Itoa(user.FobID),
+				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339),
+			})
+		}
+		cw.Flush()
+	}
+}
 
 func (s *Server) newAssignFobHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

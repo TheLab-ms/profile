@@ -1,8 +1,6 @@
 package server
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -24,7 +22,6 @@ import (
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/reporting"
-	"github.com/TheLab-ms/profile/internal/server/datamodel"
 )
 
 type Server struct {
@@ -169,63 +166,6 @@ func (s *Server) newContactInfoFormHandler() http.HandlerFunc {
 
 		reporting.DefaultSink.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-	}
-}
-
-func (s *Server) newAdminDumpHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := s.Keycloak.ListUsers(r.Context())
-		if err != nil {
-			log.Printf("error while listing users: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
-		cw := csv.NewWriter(w)
-		cw.Write([]string{
-			"First", "Last", "Email", "Email Verified", "Waiver Signed",
-			"Payment Status", "Building Access Enabled", "Discount Type", "Keyfob ID",
-			"Signup Timestamp", "Last Visit Timestamp",
-		})
-
-		for _, user := range users {
-			cw.Write([]string{
-				user.First, user.Last, user.Email,
-				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
-				user.PaymentStatus(), strconv.FormatBool(user.ActiveMember),
-				user.DiscountType, strconv.Itoa(user.FobID),
-				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339),
-			})
-		}
-		cw.Flush()
-	}
-}
-
-func (s *Server) newListEventsHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		events, err := s.EventsCache.GetEvents(time.Now().Add(time.Hour * 24 * 60))
-		if err != nil {
-			renderSystemError(w, "getting cached events: %s", err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
-		json.NewEncoder(w).Encode(events)
-	}
-}
-
-func (s *Server) newPricingHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		items := s.PriceCache.GetPrices()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
-		json.NewEncoder(w).Encode(datamodel.NewPrices(items))
 	}
 }
 
