@@ -28,7 +28,7 @@ func run() error {
 	env := &conf.Env{}
 	env.MustLoad()
 
-	kc := keycloak.New(env, nil)
+	kc := keycloak.New(env)
 	ctx := context.Background()
 
 	users, err := kc.ListUsers(ctx)

@@ -31,7 +31,7 @@ func run() error {
 		log.Fatal(err)
 	}
 
-	kc := keycloak.New(env, nil)
+	kc := keycloak.New(env)
 	ctx := context.Background()
 
 	users, err := kc.ListUsers(ctx)

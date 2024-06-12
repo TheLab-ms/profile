@@ -10,7 +10,6 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile"
-	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
@@ -47,8 +46,7 @@ func main() {
 	priceCache := payment.NewPriceCache()
 	go priceCache.Run(ctx)
 
-	discord := chatbot.NewDiscord(env, priceCache)
-	kc := keycloak.New(env, discord)
+	kc := keycloak.New(env)
 	go kc.RunReportingLoop()
 
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
