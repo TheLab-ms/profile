@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/time/rate"
 
 	"github.com/TheLab-ms/profile/internal/conf"
@@ -45,6 +47,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/profile/contact", s.newContactInfoFormHandler())
 	mux.HandleFunc("/profile/stripe", s.newStripeCheckoutHandler())
 	mux.HandleFunc("/docuseal", s.newDocusealRedirectHandler())
+	mux.HandleFunc("/fobqr", s.newFobQRHandler())
 	mux.HandleFunc("/secrets", s.newSecretIndexHandler())
 	mux.HandleFunc("/secrets/encrypt", s.newSecretEncryptionHandler())
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
@@ -223,6 +226,26 @@ func (s *Server) newPricingHandler() http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Headers", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET")
 		json.NewEncoder(w).Encode(datamodel.NewPrices(items))
+	}
+}
+
+func (s *Server) newFobQRHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := s.Keycloak.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+		url := fmt.Sprintf("%s/admin/assign-fob?email=%s", s.Env.SelfURL, user.Email)
+
+		png, err := qrcode.Encode(url, qrcode.Medium, 512)
+		if err != nil {
+			renderSystemError(w, "generating QR code: %s", err)
+			return
+		}
+
+		w.Header().Add("Content-Type", "image/png")
+		w.Write(png)
 	}
 }
 

@@ -1,4 +1,3 @@
-{{- if not .user.BuildingAccessApproved }}
 <div class="panel panel-success">
     <div class="panel-heading">
         <h3 class="panel-title">Key Fob</h3>
@@ -7,10 +6,8 @@
     <div class="panel-body">
         <p>Members get 24 hour access to TheLab using RFID keyfobs.</p>
 
-        <div class="alert alert-warning" role="alert">
-            New accounts need to be approved by TheLab leadership before building access is enabled.<br>
-            Attend a Keyfob Pickup event and get to know us, pick up a new keyfob, and get your account activated!
-        </div>
+        <p>TheLab leadership can link a fob to your account using the QR code below.</p>
+
+        <a href="/fobqr" role="button" target="_blank" class="btn btn-default">Show QR</a>
     </div>
 </div>
-{{- end }}
