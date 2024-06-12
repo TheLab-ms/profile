@@ -19,6 +19,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 			return
 		}
 
+		w.Header().Add("Content-Disposition", `"attachment; filename="export.csv"`)
 		cw := csv.NewWriter(w)
 		cw.Write([]string{
 			"First", "Last", "Email", "Email Verified", "Waiver Signed",

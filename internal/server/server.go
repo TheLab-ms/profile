@@ -212,6 +212,7 @@ func (s *Server) newDiscordLinkHandler() http.HandlerFunc {
 			return
 		}
 		reporting.DefaultSink.Publish(user.Email, "DiscordLinked", "member linked discord account %s", discordUserID)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
 
