@@ -17,6 +17,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/time/rate"
 
+	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
@@ -47,6 +48,7 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/fobqr", s.newFobQRHandler())
 	mux.HandleFunc("/secrets", s.newSecretIndexHandler())
 	mux.HandleFunc("/secrets/encrypt", s.newSecretEncryptionHandler())
+	mux.HandleFunc("/link-discord", s.newDiscordLinkHandler())
 	mux.HandleFunc("/webhooks/docuseal", s.newDocusealWebhookHandler())
 	mux.HandleFunc("/webhooks/stripe", s.newStripeWebhookHandler())
 	mux.HandleFunc("/admin/dump", onlyLeadership(s.newAdminDumpHandler()))
@@ -186,6 +188,25 @@ func (s *Server) newFobQRHandler() http.HandlerFunc {
 
 		w.Header().Add("Content-Type", "image/png")
 		w.Write(png)
+	}
+}
+
+func (s *Server) newDiscordLinkHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		discordUserID := r.URL.Query().Get("user")
+		sig := chatbot.GenerateHMAC(discordUserID, s.Env.DiscordBotToken)
+		if r.URL.Query().Get("sig") != sig {
+			http.Error(w, "invalid signature", 400)
+			return
+		}
+
+		user, err := s.Keycloak.GetUser(r.Context(), getUserID(r))
+		if err != nil {
+			renderSystemError(w, "error while getting user: %s", err)
+			return
+		}
+
+		reporting.DefaultSink.Publish(user.Email, "DiscordLinked", "member linked discord account %s", discordUserID)
 	}
 }
 

@@ -34,10 +34,11 @@ type Env struct {
 	DocusealToken string `split_words:"true"`
 
 	// Discord
-	DiscordGuildID    string        `split_words:"true"`
-	DiscordBotToken   string        `split_words:"true"`
-	DiscordInterval   time.Duration `split_words:"true" default:"60s"`
-	DiscordWebhookURL string        `split_words:"true"`
+	DiscordAppID         string        `split_words:"true"`
+	DiscordGuildID       string        `split_words:"true"`
+	DiscordBotToken      string        `split_words:"true"`
+	DiscordEventBotToken string        `split_words:"true"`
+	DiscordInterval      time.Duration `split_words:"true" default:"60s"`
 
 	// Age (secrets encrpytion)
 	AgePublicKey  string `split_words:"true"`

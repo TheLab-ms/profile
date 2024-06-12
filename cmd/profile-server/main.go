@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/stripe-go/v75"
 
 	"github.com/TheLab-ms/profile"
+	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
@@ -49,6 +50,11 @@ func main() {
 	kc := keycloak.New(env)
 	go kc.RunReportingLoop()
 
+	err = chatbot.Start(ctx, env)
+	if err != nil {
+		panic(err)
+	}
+
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := events.NewCache(env)
 	go eventsCache.Run(ctx)
@@ -63,7 +69,7 @@ func main() {
 		Env:         env,
 		Keycloak:    kc,
 		PriceCache:  priceCache,
-		EventsCache: eventsCache,
+		EventsCache: nil,
 		Assets:      profile.Assets,
 		Templates:   profile.Templates,
 	}

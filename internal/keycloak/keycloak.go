@@ -216,6 +216,17 @@ func (k *Keycloak) UpdateLastSwipeTime(ctx context.Context, user *User, ts time.
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+func (k *Keycloak) UpdateDiscordLink(ctx context.Context, user *User, id string) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	attr := safeGetAttrs(user.keycloakObject)
+	attr["discordUserID"] = []string{id}
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
+}
+
 func (k *Keycloak) UpdatePaypalMetadata(ctx context.Context, user *User, price float64, lastTX time.Time) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
