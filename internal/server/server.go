@@ -206,6 +206,11 @@ func (s *Server) newDiscordLinkHandler() http.HandlerFunc {
 			return
 		}
 
+		err = s.Keycloak.UpdateDiscordLink(r.Context(), user, discordUserID)
+		if err != nil {
+			renderSystemError(w, "error while updating user: %s", err)
+			return
+		}
 		reporting.DefaultSink.Publish(user.Email, "DiscordLinked", "member linked discord account %s", discordUserID)
 	}
 }
