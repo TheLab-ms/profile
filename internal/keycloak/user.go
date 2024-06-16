@@ -72,10 +72,7 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 
 		user.LastPaypalTransactionPrice = s.Price
 		user.PaypalSubscriptionID = s.TransactionID
-		user.LastPaypalTransactionTime, err = time.Parse(time.RFC3339, s.TimeRFC3339)
-		if err != nil {
-			return nil, err
-		}
+		user.LastPaypalTransactionTime, _ = time.Parse(time.RFC3339, s.TimeRFC3339)
 	}
 
 	return user, nil

@@ -53,6 +53,10 @@ func run() error {
 			log.Printf("error while getting paypal subscription for member %s: %s", user.Email, err)
 			continue
 		}
+		if current == nil {
+			log.Printf("no subscription found for id %s", user.PaypalSubscriptionID)
+			continue
+		}
 		active := current.Status != "CANCELLED"
 		price, _ := strconv.ParseFloat(current.Billing.LastPayment.Amount.Value, 64)
 
