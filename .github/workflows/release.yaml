@@ -22,30 +22,10 @@ jobs:
       - name: Test
         run: go test -v ./...
 
-      - name: List directories
-        id: list-dirs
-        run: |
-          dirs=$(find ./cmd -mindepth 1 -maxdepth 1 -type d | sed 's|^\./cmd/||')
-          echo "::set-output name=dirs::$dirs"
-
-      - name: Format matrix
-        id: set-matrix
-        run: |
-          dirs=${{ steps.list-dirs.outputs.dirs }}
-          matrix="{\"directory\":["
-          for dir in $dirs; do
-            matrix+="{\"name\":\"$dir\",\"image\":\"${dir##*/}\"},"
-          done
-          matrix=${matrix%,}
-          matrix+="]}"
-          echo "::set-output name=matrix::$matrix"
-
   push:
     name: Push
     runs-on: ubuntu-latest
     needs: test
-    strategy:
-      matrix: ${{ fromJson(needs.test.outputs.matrix) }}
     steps:
       - name: Setup Docker buildx
         uses: docker/setup-buildx-action@v2
@@ -60,20 +40,74 @@ jobs:
       - uses: actions/checkout@v3
         name: Check out code
 
-      - name: Construct image metadata
-        id: image-meta
+      - name: Construct profile-server metadata
+        id: profile-server-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/TheLab-ms/profile/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile
           tags: |
             type=sha
 
-      - name: Push image
+      - name: Push profile-server image
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ${{ matrix.directory }}/server/Dockerfile
-          tags: ${{ steps.image-meta.outputs.tags }}
-          labels: ${{ steps.image-meta.outputs.labels }}
+          file: ./cmd/profile-server/Dockerfile
+          tags: ${{ steps.profile-server-meta.outputs.tags }}
+          labels: ${{ steps.profile-server-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Construct visit-check-job metadata
+        id: visit-check-job-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/visit-check-job
+          tags: |
+            type=sha
+
+      - name: Push visit-check-job image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/visit-check-job/Dockerfile
+          tags: ${{ steps.visit-check-job-meta.outputs.tags }}
+          labels: ${{ steps.visit-check-job-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Construct paypal-check-job metadata
+        id: paypal-check-job-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/paypal-check-job
+          tags: |
+            type=sha
+
+      - name: Push paypal-check-job image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/paypal-check-job/Dockerfile
+          tags: ${{ steps.paypal-check-job-meta.outputs.tags }}
+          labels: ${{ steps.paypal-check-job-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Construct profile-async metadata
+        id: profile-async-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/profile-async
+          tags: |
+            type=sha
+
+      - name: Push profile-async image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/profile-async/Dockerfile
+          tags: ${{ steps.profile-async-meta.outputs.tags }}
+          labels: ${{ steps.profile-async-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
