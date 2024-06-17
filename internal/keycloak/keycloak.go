@@ -532,16 +532,15 @@ func (k *Keycloak) EnsureWebhook(ctx context.Context, callbackURL string) error 
 		return fmt.Errorf("listing: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/webhook", callbackURL)
 	for _, hook := range hooks {
-		if hook.URL == url {
+		if hook.URL == callbackURL {
 			return nil // already exists
 		}
 	}
 
 	return k.CreateWebhook(ctx, &Webhook{
 		Enabled:    true,
-		URL:        url,
+		URL:        callbackURL,
 		EventTypes: []string{"admin.*"},
 	})
 }
