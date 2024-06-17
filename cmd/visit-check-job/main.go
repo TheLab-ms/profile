@@ -39,12 +39,31 @@ func run() error {
 		return fmt.Errorf("listing users: %w", err)
 	}
 
+	err = updateTimestamps(ctx, kc, users)
+	if err != nil {
+		return fmt.Errorf("updating timestamps: %w", err)
+	}
+
+	users, err = kc.ListUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("listing users: %w", err)
+	}
+
+	err = deactivateAbsentMembers(ctx, kc, users)
+	if err != nil {
+		return fmt.Errorf("deactivating absent members: %w", err)
+	}
+
+	log.Printf("done!")
+	return nil
+}
+
+func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 	for _, user := range users {
 		if !user.ActiveMember {
 			continue
 		}
-		limiter.Wait(ctx)
 
 		name := fmt.Sprintf("%s %s", user.First, user.Last)
 		latest, ok, err := reporting.DefaultSink.GetLatestSwipe(ctx, name, user.LastSwipeTime)
@@ -59,13 +78,40 @@ func run() error {
 			continue // skip timestamps that are close
 		}
 
+		limiter.Wait(ctx)
 		err = kc.UpdateLastSwipeTime(ctx, user.User, latest)
 		if err != nil {
 			return fmt.Errorf("writing latest swipe to user: %w", err)
 		}
 		log.Printf("updated last visit time for user %q (%s->%s)", user.User.Email, user.LastSwipeTime, latest)
 	}
+	return nil
+}
 
-	log.Printf("done!")
+var saneStartTime = time.Now().Add(time.Hour * 24 * 365 * 10)
+
+var absentThres = time.Hour * 24 * 100
+
+func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
+	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
+	for _, user := range users {
+		if !user.ActiveMember || user.NonBillable {
+			continue
+		}
+
+		// If they last badged in more than 10yr ago, something is wrong
+		if user.LastSwipeTime.Before(saneStartTime) {
+			continue
+		}
+
+		// Ignore active members
+		sinceLastVisit := time.Since(user.LastSwipeTime)
+		if sinceLastVisit < absentThres {
+			continue
+		}
+
+		limiter.Wait(ctx)
+		log.Printf("[noop] Would have deactivated user %q because their last visit was %s ago", user.Email, sinceLastVisit)
+	}
 	return nil
 }
