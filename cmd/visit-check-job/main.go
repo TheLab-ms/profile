@@ -88,7 +88,7 @@ func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycl
 	return nil
 }
 
-var saneStartTime = time.Now().Add(time.Hour * 24 * 365 * 10)
+var saneStartTime = time.Now().Add(-(time.Hour * 24 * 365 * 10))
 
 var absentThres = time.Hour * 24 * 100
 
@@ -111,7 +111,7 @@ func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak, users [
 		}
 
 		limiter.Wait(ctx)
-		log.Printf("[noop] Would have deactivated user %q because their last visit was %s ago", user.Email, sinceLastVisit)
+		log.Printf("[noop] Would have deactivated user %q because their last visit was %2.f days ago", user.Email, sinceLastVisit.Hours()/24)
 	}
 	return nil
 }
