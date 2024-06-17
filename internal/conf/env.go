@@ -9,9 +9,10 @@ import (
 
 type Env struct {
 	// Keycloak
-	KeycloakURL            string `split_words:"true" required:"true"`
-	KeycloakRealm          string `default:"master" split_words:"true"`
-	KeycloakMembersGroupID string `split_words:"true" required:"true"`
+	KeycloakURL             string `split_words:"true" required:"true"`
+	KeycloakRealm           string `default:"master" split_words:"true"`
+	KeycloakMembersGroupID  string `split_words:"true" required:"true"`
+	KeycloakRegisterWebhook bool   `split_words:"true"`
 
 	// These should be loaded from the env if not set
 	KeycloakClientID     string `split_words:"true"`

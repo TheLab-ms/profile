@@ -84,12 +84,30 @@ jobs:
           tags: |
             type=sha
 
-      - name: Push paypal-check-job image
+      - name: Push profile-async image
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./cmd/paypal-check-job/Dockerfile
-          tags: ${{ steps.paypal-check-job-meta.outputs.tags }}
-          labels: ${{ steps.paypal-check-job-meta.outputs.labels }}
+          file: ./cmd/profile-async/Dockerfile
+          tags: ${{ steps.profile-async-meta.outputs.tags }}
+          labels: ${{ steps.profile-async-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Construct profile-async metadata
+        id: profile-async-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/TheLab-ms/profile/profile-async
+          tags: |
+            type=sha
+
+      - name: Push profile-async image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./cmd/profile-async/Dockerfile
+          tags: ${{ steps.profile-async-meta.outputs.tags }}
+          labels: ${{ steps.profile-async-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
