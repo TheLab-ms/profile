@@ -8,6 +8,5 @@ RUN CGO_ENABLED=0 go build ./cmd/profile-async
 
 FROM scratch
 COPY --from=builder /app/profile-async /profile-async
-COPY --from=builder /app/age/age /bin/age
 ENV PATH=/bin
 ENTRYPOINT ["/profile-async"]
