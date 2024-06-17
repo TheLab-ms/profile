@@ -66,13 +66,13 @@ jobs:
           tags: |
             type=sha
 
-      - name: Push visit-check-job image
+      - name: Push paypal-check-job image
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./cmd/visit-check-job/Dockerfile
-          tags: ${{ steps.visit-check-job-meta.outputs.tags }}
-          labels: ${{ steps.visit-check-job-meta.outputs.labels }}
+          file: ./cmd/paypal-check-job/Dockerfile
+          tags: ${{ steps.paypal-check-job-meta.outputs.tags }}
+          labels: ${{ steps.paypal-check-job-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
