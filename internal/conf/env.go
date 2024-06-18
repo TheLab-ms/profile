@@ -40,6 +40,7 @@ type Env struct {
 	DiscordBotToken      string        `split_words:"true"`
 	DiscordEventBotToken string        `split_words:"true"`
 	DiscordInterval      time.Duration `split_words:"true" default:"60s"`
+	DiscordMemberRoleID  string        `split_words:"true"`
 
 	// Age (secrets encrpytion)
 	AgePublicKey  string `split_words:"true"`

@@ -398,6 +398,32 @@ func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 	}
 }
 
+func (k *Keycloak) ListUserIDs(ctx context.Context) ([]string, error) {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
+	}
+
+	var (
+		max   = 50
+		first = 0
+	)
+	ids := []string{}
+	for {
+		users, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{Max: &max, First: &first, BriefRepresentation: gocloak.BoolP(true)})
+		if err != nil {
+			return nil, fmt.Errorf("getting token: %w", err)
+		}
+		if len(users) == 0 {
+			return ids, nil
+		}
+		first += len(users)
+		for _, kcuser := range users {
+			ids = append(ids, *kcuser.ID)
+		}
+	}
+}
+
 // For whatever reason the Keycloak client doesn't support token rotation
 func (k *Keycloak) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 	k.tokenLock.Lock()

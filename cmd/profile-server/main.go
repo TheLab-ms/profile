@@ -50,10 +50,11 @@ func main() {
 	kc := keycloak.New(env)
 	go kc.RunReportingLoop()
 
-	err = chatbot.Start(ctx, env)
+	bot, err := chatbot.NewBot(env)
 	if err != nil {
 		panic(err)
 	}
+	bot.Start(ctx)
 
 	// Events cache polls a the Discord scheduled events API to feed the calendar API.
 	eventsCache := events.NewCache(env)
