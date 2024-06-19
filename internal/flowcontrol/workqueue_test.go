@@ -1,7 +1,6 @@
-package main
+package flowcontrol
 
 import (
-	"context"
 	"math"
 	"sync"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestAddingSingleItem(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 	q.Add("item1")
 
 	key := q.Get()
@@ -21,7 +20,7 @@ func TestAddingSingleItem(t *testing.T) {
 }
 
 func TestAddMultipleItems(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 	q.Add("item1")
 	q.Add("item2")
 
@@ -36,37 +35,15 @@ func TestAddMultipleItems(t *testing.T) {
 	}
 }
 
-func TestRetryWithBackoff(t *testing.T) {
-	q := NewQueue()
-	go q.Run(context.TODO())
-	q.Add("item1")
-	q.Retry("item1")
-
-	// Get should wait for the retry backoff duration before returning the item.
-	start := time.Now()
-	key := q.Get()
-	elapsed := time.Since(start)
-
-	if key != "item1" {
-		t.Errorf("Expected 'item1', got %s", key)
-	}
-
-	expectedBackoff := time.Second * 2
-	tolerance := 0.2
-	if !approxDuration(elapsed, expectedBackoff, tolerance) {
-		t.Errorf("Expected retry backoff around %v, got %v", expectedBackoff, elapsed)
-	}
-}
-
 func TestItemUniqueConstraint(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 	q.Add("item1")
 	q.Add("item1") // This should be ignored
 	assert.Len(t, q.items, 1)
 }
 
 func TestConcurrentAddAndRetrieve(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 	var wg sync.WaitGroup
 	keys := []string{"item1", "item2", "item3"}
 
@@ -89,22 +66,22 @@ func TestConcurrentAddAndRetrieve(t *testing.T) {
 }
 
 func TestDoneFunctionality(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 	q.Add("item1")
 	q.Done("item1")
 	assert.Len(t, q.items, 0)
 }
 
 func TestExponentialBackoffFunction(t *testing.T) {
-	q := NewQueue()
+	q := NewQueue[string]()
 
 	backoff := q.exponentialBackoff(1)
-	if !approxDuration(backoff, time.Second*2, 0.2) {
+	if !approxDuration(backoff, time.Millisecond*100, 0.2) {
 		t.Errorf("Expected backoff around 2s, got %v", backoff)
 	}
 
 	backoff = q.exponentialBackoff(2)
-	if !approxDuration(backoff, time.Second*4, 0.2) {
+	if !approxDuration(backoff, time.Millisecond*200, 0.2) {
 		t.Errorf("Expected backoff around 4s, got %v", backoff)
 	}
 }

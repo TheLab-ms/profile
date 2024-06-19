@@ -83,6 +83,9 @@ func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 	if s == nil || s.buffer == nil {
 		return
 	}
+	if email == "" {
+		email = "<unknown>"
+	}
 	s.buffer <- &event{
 		Timestamp: time.Now(),
 		Email:     email,

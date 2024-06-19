@@ -22,6 +22,7 @@ import (
 var (
 	ErrConflict      = errors.New("conflict")
 	ErrLimitExceeded = errors.New("limit exceeded")
+	ErrNotFound      = errors.New("resource not found")
 )
 
 type Keycloak struct {
@@ -51,6 +52,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return fmt.Errorf("counting users with unverified email addresses: %w", err)
 	}
 	if n > k.env.MaxUnverifiedAccounts {
+		reporting.DefaultSink.Publish(email, "TooManyUnverified", "refusing to create a new account while there are more than %d accounts with unverified email addresses", k.env.MaxUnverifiedAccounts)
 		return ErrLimitExceeded
 	}
 
@@ -74,6 +76,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 		return err
 	}
 
+	// TODO: Do this in the async path to avoid crashing between steps (it won't recover on retry)
 	resp, err := k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
 		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": string(clientID)}).
 		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
@@ -112,10 +115,33 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 
 	kcuser, err := k.Client.GetUserByID(ctx, token.AccessToken, k.env.KeycloakRealm, userID)
 	if err != nil {
+		if e, ok := err.(*gocloak.APIError); ok && e.Code == 404 {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 
 	return newUser(kcuser)
+}
+
+func (k *Keycloak) GetUserByAttribute(ctx context.Context, key, val string) (*User, error) {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
+	}
+
+	users, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{
+		Q:   gocloak.StringP(fmt.Sprintf("%s:%s", key, val)),
+		Max: gocloak.IntP(1),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return nil, ErrNotFound
+	}
+
+	return newUser(users[0])
 }
 
 // GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
@@ -151,7 +177,7 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 		return nil, fmt.Errorf("getting current user: %w", err)
 	}
 	if len(kcusers) == 0 {
-		return nil, errors.New("user not found")
+		return nil, ErrNotFound
 	}
 
 	return newUser(kcusers[0])
@@ -194,6 +220,7 @@ func (k *Keycloak) UpdateUserWaiverState(ctx context.Context, user *User) error 
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject)
 }
 
+// TODO: Simplify setters by just writing the entire User struct back to Keycloak
 func (k *Keycloak) UpdateUserName(ctx context.Context, user *User, first, last string) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
@@ -307,6 +334,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 		return fmt.Errorf("updating user: %w", err)
 	}
 
+	// TODO: Consider moving to the async path
 	groups, err := k.Client.GetUserGroups(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, gocloak.GetGroupsParams{
 		Search: gocloak.StringP("thelab-members"),
 	})
@@ -331,6 +359,26 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 	return nil
 }
 
+func (k *Keycloak) ExtendUser(ctx context.Context, user *User) (*ExtendedUser, error) {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting token: %w", err)
+	}
+
+	groups, err := k.Client.GetUserGroups(ctx, token.AccessToken, k.env.KeycloakRealm, user.UUID, gocloak.GetGroupsParams{
+		Max:    gocloak.IntP(1),
+		Search: gocloak.StringP("thelab-members"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getting group membership: %w", err)
+	}
+
+	return &ExtendedUser{
+		User:         user,
+		ActiveMember: len(groups) > 0,
+	}, nil
+}
+
 func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
@@ -338,7 +386,7 @@ func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 	}
 
 	var (
-		max           = 50
+		max           = 150
 		first         = 0
 		activeMembers = map[string]struct{}{}
 	)
@@ -373,7 +421,7 @@ func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 	}
 
 	parsedUsers := []*ExtendedUser{}
-	max = 50
+	max = 150
 	first = 0
 	for {
 		users, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{Max: &max, First: &first})
@@ -394,32 +442,6 @@ func (k *Keycloak) ListUsers(ctx context.Context) ([]*ExtendedUser, error) {
 			_, member := activeMembers[gocloak.PString(kcuser.ID)]
 			fullUser := &ExtendedUser{User: user, ActiveMember: member}
 			parsedUsers = append(parsedUsers, fullUser)
-		}
-	}
-}
-
-func (k *Keycloak) ListUserIDs(ctx context.Context) ([]string, error) {
-	token, err := k.GetToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting token: %w", err)
-	}
-
-	var (
-		max   = 50
-		first = 0
-	)
-	ids := []string{}
-	for {
-		users, err := k.Client.GetUsers(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.GetUsersParams{Max: &max, First: &first, BriefRepresentation: gocloak.BoolP(true)})
-		if err != nil {
-			return nil, fmt.Errorf("getting token: %w", err)
-		}
-		if len(users) == 0 {
-			return ids, nil
-		}
-		first += len(users)
-		for _, kcuser := range users {
-			ids = append(ids, *kcuser.ID)
 		}
 	}
 }
@@ -475,6 +497,7 @@ func (k *Keycloak) getClientSecret() (string, error) {
 	return string(clientSecret), nil
 }
 
+// TODO: Move this to reporting package
 func (k *Keycloak) RunReportingLoop() {
 	if !reporting.DefaultSink.Enabled() {
 		return // no db to report to
@@ -550,63 +573,4 @@ func firstElOrZeroVal[T any](slice []T) (val T) {
 		return val
 	}
 	return slice[0]
-}
-
-func (k *Keycloak) EnsureWebhook(ctx context.Context, callbackURL string) error {
-	hooks, err := k.ListWebhooks(ctx)
-	if err != nil {
-		return fmt.Errorf("listing: %w", err)
-	}
-
-	for _, hook := range hooks {
-		if hook.URL == callbackURL {
-			return nil // already exists
-		}
-	}
-
-	return k.CreateWebhook(ctx, &Webhook{
-		Enabled:    true,
-		URL:        callbackURL,
-		EventTypes: []string{"admin.*"},
-	})
-}
-
-func (k *Keycloak) ListWebhooks(ctx context.Context) ([]*Webhook, error) {
-	token, err := k.GetToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting token: %w", err)
-	}
-
-	webhooks := []*Webhook{}
-	_, err = k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
-		SetResult(&webhooks).
-		Get(fmt.Sprintf("%s/realms/%s/webhooks", k.env.KeycloakURL, k.env.KeycloakRealm))
-	if err != nil {
-		return nil, err
-	}
-
-	return webhooks, nil
-}
-
-func (k *Keycloak) CreateWebhook(ctx context.Context, webhook *Webhook) error {
-	token, err := k.GetToken(ctx)
-	if err != nil {
-		return fmt.Errorf("getting token: %w", err)
-	}
-
-	_, err = k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
-		SetBody(webhook).
-		Post(fmt.Sprintf("%s/realms/%s/webhooks", k.env.KeycloakURL, k.env.KeycloakRealm))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type Webhook struct {
-	ID         string   `json:"id"`
-	Enabled    bool     `json:"enabled"`
-	URL        string   `json:"url"`
-	EventTypes []string `json:"eventTypes"`
 }

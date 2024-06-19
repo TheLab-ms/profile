@@ -1,4 +1,4 @@
-package main
+package flowcontrol
 
 import (
 	"container/heap"
@@ -9,30 +9,30 @@ import (
 	"time"
 )
 
-type QueueItem struct {
-	key       string
+type QueueItem[T comparable] struct {
+	key       T
 	attempts  int
 	nextRetry time.Time
 }
 
-type Queue struct {
+type Queue[T comparable] struct {
 	mu    sync.Mutex
 	cond  *sync.Cond
-	items map[string]*QueueItem
-	heap  *priorityQueue
+	items map[T]*QueueItem[T]
+	heap  *priorityQueue[T]
 }
 
-func NewQueue() *Queue {
-	q := &Queue{
-		items: make(map[string]*QueueItem),
-		heap:  &priorityQueue{},
+func NewQueue[T comparable]() *Queue[T] {
+	q := &Queue[T]{
+		items: make(map[T]*QueueItem[T]),
+		heap:  &priorityQueue[T]{},
 	}
 	heap.Init(q.heap)
 	q.cond = sync.NewCond(&q.mu)
 	return q
 }
 
-func (q *Queue) Run(ctx context.Context) {
+func (q *Queue[T]) Run(ctx context.Context) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
@@ -59,18 +59,18 @@ func (q *Queue) Run(ctx context.Context) {
 	}
 }
 
-func (q *Queue) Add(key string) {
+func (q *Queue[T]) Add(key T) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if _, exists := q.items[key]; !exists {
-		item := &QueueItem{key: key, attempts: 0}
+		item := &QueueItem[T]{key: key, attempts: 0}
 		q.items[key] = item
 		heap.Push(q.heap, item)
 		q.cond.Signal()
 	}
 }
 
-func (q *Queue) Done(key string) {
+func (q *Queue[T]) Done(key T) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if item, exists := q.items[key]; exists {
@@ -79,16 +79,15 @@ func (q *Queue) Done(key string) {
 	}
 }
 
-func (q *Queue) Get() string {
+func (q *Queue[T]) Get() T {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	for {
 		if q.heap.Len() == 0 {
 			q.cond.Wait()
 		} else {
-			item := heap.Pop(q.heap).(*QueueItem)
+			item := heap.Pop(q.heap).(*QueueItem[T])
 			if item.nextRetry.Before(time.Now()) {
-				delete(q.items, item.key)
 				return item.key
 			}
 			heap.Push(q.heap, item)
@@ -97,7 +96,7 @@ func (q *Queue) Get() string {
 	}
 }
 
-func (q *Queue) Retry(key string) {
+func (q *Queue[T]) Retry(key T) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if item, exists := q.items[key]; exists {
@@ -108,14 +107,14 @@ func (q *Queue) Retry(key string) {
 	}
 }
 
-func (q *Queue) exponentialBackoff(attempts int) time.Duration {
-	backoff := float64(time.Second)
+func (q *Queue[T]) exponentialBackoff(attempts int) time.Duration {
+	backoff := float64(time.Millisecond * 50)
 	jitter := backoff * 0.1
 	factor := math.Pow(2, float64(attempts))
 	return time.Duration(backoff*factor + jitter*factor*0.5*rand.Float64())
 }
 
-func (q *Queue) removeFromHeap(item *QueueItem) {
+func (q *Queue[T]) removeFromHeap(item *QueueItem[T]) {
 	for i, heapItem := range *q.heap {
 		if heapItem == item {
 			heap.Remove(q.heap, i)
@@ -124,20 +123,20 @@ func (q *Queue) removeFromHeap(item *QueueItem) {
 	}
 }
 
-type priorityQueue []*QueueItem
+type priorityQueue[T comparable] []*QueueItem[T]
 
-func (pq priorityQueue) Len() int { return len(pq) }
-func (pq priorityQueue) Less(i, j int) bool {
+func (pq priorityQueue[T]) Len() int { return len(pq) }
+func (pq priorityQueue[T]) Less(i, j int) bool {
 	return pq[i].nextRetry.Before(pq[j].nextRetry)
 }
-func (pq priorityQueue) Swap(i, j int) {
+func (pq priorityQueue[T]) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
 }
-func (pq *priorityQueue) Push(x interface{}) {
-	item := x.(*QueueItem)
+func (pq *priorityQueue[T]) Push(x interface{}) {
+	item := x.(*QueueItem[T])
 	*pq = append(*pq, item)
 }
-func (pq *priorityQueue) Pop() interface{} {
+func (pq *priorityQueue[T]) Pop() interface{} {
 	old := *pq
 	n := len(old)
 	item := old[n-1]

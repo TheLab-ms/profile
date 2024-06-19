@@ -20,7 +20,7 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 		}
 
 		// If there is an active payment on record for this user, start a session to manage the subscription.
-		if user.ActiveMember {
+		if user.PaypalSubscriptionID != "" {
 			sessionParams := &stripe.BillingPortalSessionParams{
 				Customer:  stripe.String(user.StripeCustomerID),
 				ReturnURL: stripe.String(s.Env.SelfURL + "/profile"),

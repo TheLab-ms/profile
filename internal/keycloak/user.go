@@ -9,15 +9,16 @@ import (
 )
 
 type User struct {
-	First, Last, Email                        string
-	FobID                                     int
-	EmailVerified, SignedWaiver, ActiveMember bool
-	NonBillable                               bool
-	DiscountType                              string
-	AdminNotes                                string // for leadership only!
-	BuildingAccessApproved                    bool
-	SignupTime                                time.Time
-	LastSwipeTime                             time.Time
+	UUID                        string
+	First, Last, Email          string
+	FobID                       int
+	EmailVerified, SignedWaiver bool
+	NonBillable                 bool
+	DiscountType                string
+	AdminNotes                  string // for leadership only!
+	BuildingAccessApproved      bool
+	SignupTime                  time.Time
+	LastSwipeTime               time.Time
 
 	DiscordUserID int64
 
@@ -35,12 +36,12 @@ type User struct {
 
 func newUser(kcuser *gocloak.User) (*User, error) {
 	user := &User{
+		UUID:                   gocloak.PString(kcuser.ID),
 		First:                  gocloak.PString(kcuser.FirstName),
 		Last:                   gocloak.PString(kcuser.LastName),
 		Email:                  gocloak.PString(kcuser.Email),
 		EmailVerified:          *gocloak.BoolP(*kcuser.EmailVerified),
 		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		ActiveMember:           safeGetAttr(kcuser, "stripeSubscriptionID") != "" || safeGetAttr(kcuser, "nonBillable") != "", // TODO: Remove
 		NonBillable:            safeGetAttr(kcuser, "nonBillable") != "",
 		DiscountType:           safeGetAttr(kcuser, "discountType"),
 		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),

@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/reporting"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -77,6 +78,9 @@ func (b *Bot) Start(ctx context.Context) error {
 func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 	member, err := b.client.GuildMember(b.env.DiscordGuildID, strconv.FormatInt(user.ID, 10), discordgo.WithContext(ctx))
 	if err != nil {
+		if e, ok := err.(*discordgo.RESTError); ok && e.Response.StatusCode == 404 {
+			return nil // nothing to do if the user no longer exists
+		}
 		return fmt.Errorf("getting guild member: %w", err)
 	}
 
@@ -96,7 +100,8 @@ func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 		if err != nil {
 			return fmt.Errorf("adding role to guild member: %w", err)
 		}
-		log.Printf("added member role to discord user %d", user.ID)
+		log.Printf("added member role to discord user for member %s", user.Email)
+		reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "added member role to discord user")
 		return nil
 	}
 
@@ -104,12 +109,39 @@ func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 	if err != nil {
 		return fmt.Errorf("removing role from guild member: %w", err)
 	}
-	log.Printf("removed member role from discord user %d", user.ID)
+	log.Printf("removed member role from discord user for member %s", user.Email)
+	reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "removed member role from discord user")
 	return nil
+}
+
+func (b *Bot) ListUsers(ctx context.Context, cursor func(int64)) error {
+	var after string
+	for {
+		members, err := b.client.GuildMembers(b.env.DiscordGuildID, after, 500, discordgo.WithContext(ctx))
+		if err != nil {
+			return err
+		}
+		if len(members) == 0 {
+			return nil
+		}
+		for _, member := range members {
+			after = member.User.ID
+			if member.User == nil {
+				continue // shouldn't be possible
+			}
+			id, err := strconv.ParseInt(member.User.ID, 10, 0)
+			if err != nil {
+				log.Printf("error while parsing discord member id: %s", err)
+				continue
+			}
+			cursor(id)
+		}
+	}
 }
 
 type UserStatus struct {
 	ID           int64
+	Email        string
 	ActiveMember bool
 }
 
