@@ -120,10 +120,15 @@ func (s *Server) newProfileViewHandler() http.HandlerFunc {
 			renderSystemError(w, "error while fetching user: %s", err)
 			return
 		}
+		extended, err := s.Keycloak.ExtendUser(r.Context(), user)
+		if err != nil {
+			renderSystemError(w, "error while extending user: %s", err)
+			return
+		}
 
 		viewData := map[string]any{
 			"page":            "profile",
-			"user":            user,
+			"user":            extended,
 			"prices":          payment.CalculateDiscounts(user, s.PriceCache.GetPrices()),
 			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
 			"stripePending":   etagString != "" && user.StripeETag < etag,
