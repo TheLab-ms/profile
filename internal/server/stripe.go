@@ -18,14 +18,9 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 			renderSystemError(w, "error while getting user from Keycloak: %s", err)
 			return
 		}
-		extended, err := s.Keycloak.ExtendUser(r.Context(), user)
-		if err != nil {
-			renderSystemError(w, "error while extending user with Keycloak: %s", err)
-			return
-		}
 
 		// If there is an active payment on record for this user, start a session to manage the subscription.
-		if extended.ActiveMember {
+		if user.StripeCustomerID != "" {
 			sessionParams := &stripe.BillingPortalSessionParams{
 				Customer:  stripe.String(user.StripeCustomerID),
 				ReturnURL: stripe.String(s.Env.SelfURL + "/profile"),
