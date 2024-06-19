@@ -98,18 +98,18 @@ func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 	if user.ActiveMember {
 		err = b.client.GuildMemberRoleAdd(b.env.DiscordGuildID, strconv.FormatInt(user.ID, 10), b.env.DiscordMemberRoleID, discordgo.WithContext(ctx))
 		if err != nil {
-			return fmt.Errorf("adding role to guild member: %w", err)
+			return fmt.Errorf("adding role to guild member %q: %w", member.DisplayName(), err)
 		}
-		log.Printf("added member role to discord user for member %s", user.Email)
+		log.Printf("added member role for discord user %s i.e. member %s", member.DisplayName(), user.Email)
 		reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "added member role to discord user")
 		return nil
 	}
 
 	err = b.client.GuildMemberRoleRemove(b.env.DiscordGuildID, strconv.FormatInt(user.ID, 10), b.env.DiscordMemberRoleID, discordgo.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("removing role from guild member: %w", err)
+		return fmt.Errorf("removing role from guild member %q: %w", member.DisplayName(), err)
 	}
-	log.Printf("removed member role from discord user for member %s", user.Email)
+	log.Printf("removed member role from discord user %s i.e. member %s", member.DisplayName(), user.Email)
 	reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "removed member role from discord user")
 	return nil
 }
