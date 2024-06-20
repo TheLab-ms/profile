@@ -91,6 +91,7 @@ func (k *Keycloak) RegisterUser(ctx context.Context, email string) error {
 	return nil
 }
 
+// TODO: Refactor away
 func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int) (bool, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {

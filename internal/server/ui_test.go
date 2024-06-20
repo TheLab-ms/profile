@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: Write more tests
-
 func TestRenderProfile(t *testing.T) {
 	tests := []struct {
 		Name    string
@@ -32,6 +30,33 @@ func TestRenderProfile(t *testing.T) {
 				SignedWaiver:  true,
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
+			},
+		},
+		{
+			Name:    "no payment yet",
+			Fixture: "inactive.html",
+			User: &keycloak.User{
+				First:         "Steve",
+				Last:          "Ballmer",
+				FobID:         666,
+				EmailVerified: true,
+				SignedWaiver:  true,
+				Email:         "developers@microsoft.com",
+			},
+		},
+		{
+			Name:    "canceled stripe member",
+			Fixture: "canceled.html",
+			User: &keycloak.User{
+				First:                 "Steve",
+				Last:                  "Ballmer",
+				FobID:                 666,
+				EmailVerified:         true,
+				SignedWaiver:          true,
+				Email:                 "developers@microsoft.com",
+				DiscountType:          "developersdevelopersdevelopers",
+				StripeSubscriptionID:  "foo",
+				StripeCancelationTime: time.Now().Add(-time.Hour).Unix(),
 			},
 		},
 		{
