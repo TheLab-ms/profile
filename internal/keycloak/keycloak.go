@@ -144,26 +144,6 @@ func (k *Keycloak) GetUserByAttribute(ctx context.Context, key, val string) (*Us
 	return newUser(users[0])
 }
 
-// GetUserAtETag returns the user object at the given etag, or a possibly different version on timeout.
-//
-// This is useful when avoiding backtracking for cases in which a change has been written to Stripe but
-// the corresponding webhook may not have been handled.
-func (k *Keycloak) GetUserAtETag(ctx context.Context, userID string, etag int64) (user *User, err error) {
-	for i := 0; i < 15; i++ {
-		user, err = k.GetUser(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		if etag == 0 || user.StripeETag >= etag {
-			return user, nil
-		}
-
-		time.Sleep(time.Millisecond * 100) // backoff + jitter would be nice here
-	}
-	log.Printf("timeout while waiting for Stripe webhook")
-	return user, nil // timeout
-}
-
 func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {

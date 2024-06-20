@@ -25,7 +25,6 @@ type User struct {
 	StripeCustomerID      string
 	StripeSubscriptionID  string
 	StripeCancelationTime int64
-	StripeETag            int64
 
 	LastPaypalTransactionPrice float64
 	LastPaypalTransactionTime  time.Time
@@ -51,7 +50,6 @@ func newUser(kcuser *gocloak.User) (*User, error) {
 	}
 	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
 	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
-	user.StripeETag, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeETag"), 10, 0)
 	user.DiscordUserID, _ = strconv.ParseInt(safeGetAttr(kcuser, "discordUserID"), 10, 0)
 
 	signupTime, _ := strconv.Atoi(safeGetAttr(kcuser, "signupEpochTimeUTC"))

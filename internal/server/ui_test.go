@@ -16,8 +16,6 @@ import (
 // TODO: Write more tests
 
 func TestRenderProfile(t *testing.T) {
-	const currentStripeETag = 123
-
 	tests := []struct {
 		Name    string
 		Fixture string
@@ -34,7 +32,6 @@ func TestRenderProfile(t *testing.T) {
 				SignedWaiver:  true,
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
-				StripeETag:    currentStripeETag,
 			},
 		},
 		{
@@ -51,7 +48,6 @@ func TestRenderProfile(t *testing.T) {
 				LastPaypalTransactionTime:  time.Now(),
 				LastPaypalTransactionPrice: 6000,
 				PaypalSubscriptionID:       "foobarbaz",
-				StripeETag:                 9001,
 			},
 		},
 		{
@@ -65,7 +61,6 @@ func TestRenderProfile(t *testing.T) {
 				SignedWaiver:  true,
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
-				StripeETag:    9001,
 				NonBillable:   true,
 			},
 		},
@@ -75,7 +70,7 @@ func TestRenderProfile(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			prices := []*payment.Price{{ID: "foo", Price: 1000}}
 			buf := &bytes.Buffer{}
-			err := renderProfile(buf, test.User, prices, currentStripeETag)
+			err := renderProfile(buf, test.User, prices)
 			require.NoError(t, err)
 
 			fp := filepath.Join("fixtures", test.Fixture)

@@ -16,11 +16,7 @@
 
         {{- end }}
         <div class="well">
-            {{- if .stripePending }}
-            <h4>Membership Status: <span class="label label-default">Unknown</span></h4>
-            Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
-            seconds to see it.
-            {{- else if .user.NonBillable }}
+            {{- if .user.NonBillable }}
             <h4>Membership Status: <span class="label label-default">Lifetime</span></h4>
             Your membership has been sponsored for the foreseeable future.
             {{- else if (and .user.StripeSubscriptionID .expiration) }}

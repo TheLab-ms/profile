@@ -2,7 +2,6 @@ package payment
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/stripe/stripe-go/v75"
@@ -13,11 +12,10 @@ import (
 
 // NewCheckoutSessionParams sets the various Stripe checkout options for a new registering member.
 func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *conf.Env, pc *PriceCache, priceID string) *stripe.CheckoutSessionParams {
-	etag := strconv.FormatInt(user.StripeETag+1, 10)
 	checkoutParams := &stripe.CheckoutSessionParams{
 		Mode:          stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		CustomerEmail: &user.Email,
-		SuccessURL:    stripe.String(env.SelfURL + "/profile?i=" + etag),
+		SuccessURL:    stripe.String(env.SelfURL + "/profile"),
 		CancelURL:     stripe.String(env.SelfURL + "/profile"),
 	}
 	checkoutParams.Context = ctx
@@ -31,7 +29,6 @@ func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *con
 	}
 
 	checkoutParams.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
-		Metadata:           map[string]string{"etag": etag},
 		BillingCycleAnchor: calculateBillingCycleAnchor(user), // This enables migration from paypal
 	}
 	if checkoutParams.SubscriptionData.BillingCycleAnchor != nil {
