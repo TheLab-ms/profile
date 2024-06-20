@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/TheLab-ms/profile"
 )
 
 func (s *Server) newSecretIndexHandler() http.HandlerFunc {
@@ -17,7 +19,7 @@ func (s *Server) newSecretIndexHandler() http.HandlerFunc {
 		ciphertext := r.URL.Query().Get("c")
 		if ciphertext == "" {
 			w.Header().Add("Content-Type", "text/html")
-			s.Templates.ExecuteTemplate(w, "secret-index.html", nil)
+			profile.Templates.ExecuteTemplate(w, "secret-index.html", nil)
 			return
 		}
 		// The caller provided ciphertext, decrypt it
@@ -50,7 +52,7 @@ func (s *Server) newSecretIndexHandler() http.HandlerFunc {
 
 		log.Printf("decrypted value %q for user %q originally encrypted by %q", p.Description, userID, p.EncryptedByUser)
 		w.Header().Add("Content-Type", "text/html")
-		s.Templates.ExecuteTemplate(w, "secret-decrypted.html", p)
+		profile.Templates.ExecuteTemplate(w, "secret-decrypted.html", p)
 	}
 }
 
@@ -84,7 +86,7 @@ func (s *Server) newSecretEncryptionHandler() http.HandlerFunc {
 		}
 
 		w.Header().Add("Content-Type", "text/html")
-		s.Templates.ExecuteTemplate(w, "secret-encrypted.html", map[string]any{
+		profile.Templates.ExecuteTemplate(w, "secret-encrypted.html", map[string]any{
 			"url":  s.Env.SelfURL + "/secrets?c=" + base64.RawURLEncoding.EncodeToString(ciphertext.Bytes()),
 			"desc": p.Description,
 		})

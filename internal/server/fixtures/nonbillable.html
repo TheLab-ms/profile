@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="/assets/bootstrap.min.css" />
+  <script src="/assets/jquery-3.7.1.min.js"></script>
+  <script src="/assets/bootstrap.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    .custom-navbar {
+      background-color: #99cc66;
+      border-radius: 0px;
+    }
+
+    .custom-navbar .nav > li > a {
+      border-bottom: 2px solid transparent;
+      color: #333;
+    }
+
+    .custom-navbar .nav > li > a:hover {
+      border-bottom: 2px solid #000;
+      background: transparent;
+    }
+
+    .custom-navbar .nav > li.active > a {
+      border-bottom: 2px solid #000;
+    }
+
+    .panel-success > .panel-heading {
+      background: #ccecab;
+      border-color: #ccecab;
+    }
+
+    .panel-success {
+      border-color: #ccecab;
+    }
+
+    .alert {
+      border: none;
+    }
+  </style>
+</head>
+
+
+<body>
+  <nav class="navbar custom-navbar">
+  <div class="navbar-header">
+    <a class="navbar-brand d-flex align-items-center" href="/">
+      <img src="/assets/glider.svg" alt="Logo" style="height: 30px; margin-top: -5px" />
+    </a>
+  </div>
+
+  <div class="collapse navbar-collapse d-flex align-items-center" id="bs-example-navbar-collapse-1">
+    <ul class="nav navbar-nav">
+      <li class='active'>
+        <a href="/">Profile</a>
+      </li>
+      <li class=''>
+        <a href="/signup">Signup</a>
+      </li>
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+      <li><a href="/oauth2/sign_out?rd=/signup">Logout</a></li>
+    </ul>
+  </div>
+</nav>
+
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-4">
+        <div class="panel panel-success">
+    <div class="panel-heading">
+        <h3 class="panel-title">Contact Information</h3>
+    </div>
+
+    <div class="panel-body">
+        <form class="form" action="/profile/contact">
+            <div class="form-group">
+                <label for="first">First Name</label>
+                <input type="text" id="first" name="first" value="Steve" placeholder="First Name"
+                    class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label for="first">Last Name</label>
+                <input type="text" id="last" name="last" value="Ballmer" placeholder="Last Name"
+                    class="form-control" />
+            </div>
+
+            
+
+            <div class="btn-toolbar" role="toolbar">
+                <input type="submit" value="Update" class="btn btn-default" />
+            </div>
+        </form>
+    </div>
+</div>
+        
+        <div class="panel panel-success">
+    <div class="panel-heading">
+        <h3 class="panel-title">Key Fob</h3>
+    </div>
+
+    <div class="panel-body">
+        <p>Members get 24 hour access to TheLab using RFID keyfobs.</p>
+
+        <p>TheLab leadership can link a fob to your account using the QR code below.</p>
+
+        <a href="/fobqr" role="button" target="_blank" class="btn btn-default">Show QR</a>
+    </div>
+</div>
+        <div class="panel panel-success">
+    <div class="panel-heading">
+        <h3 class="panel-title">Payment</h3>
+    </div>
+
+    <div class="panel-body">
+        <div class="well">
+            <h4>Membership Status: <span class="label label-default">Lifetime</span></h4>
+            Your membership has been sponsored for the foreseeable future.
+        </div>
+        <div class="btn-group" role="group" aria-label="...">
+        </div>
+    </div>
+</div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

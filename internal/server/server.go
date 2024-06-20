@@ -3,20 +3,17 @@ package server
 import (
 	"errors"
 	"fmt"
-	"html/template"
-	"io/fs"
 	"log"
 	"net/http"
 	"net/mail"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/time/rate"
 
+	"github.com/TheLab-ms/profile"
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/events"
@@ -30,8 +27,6 @@ type Server struct {
 	Keycloak    *keycloak.Keycloak
 	PriceCache  *payment.PriceCache
 	EventsCache *events.EventCache
-	Assets      fs.FS
-	Templates   *template.Template
 }
 
 func (s *Server) NewHandler() http.Handler {
@@ -57,14 +52,8 @@ func (s *Server) NewHandler() http.Handler {
 	mux.HandleFunc("/api/events", s.newListEventsHandler())
 	mux.HandleFunc("/api/prices", s.newPricingHandler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {})
-	mux.Handle("/assets/", http.FileServer(http.FS(s.Assets)))
+	mux.Handle("/assets/", http.FileServer(http.FS(profile.Assets)))
 	return mux
-}
-
-func (s *Server) newSignupViewHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		s.Templates.ExecuteTemplate(w, "signup.html", map[string]any{"page": "signup"})
-	}
 }
 
 func (s *Server) newRegistrationFormHandler() http.HandlerFunc {
@@ -107,32 +96,7 @@ func (s *Server) newRegistrationFormHandler() http.HandlerFunc {
 		}
 
 		reporting.DefaultSink.Publish(email, "Signup", "user created an account")
-		s.Templates.ExecuteTemplate(w, "signup.html", viewData)
-	}
-}
-
-func (s *Server) newProfileViewHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		etagString := r.URL.Query().Get("i")
-		etag, _ := strconv.ParseInt(etagString, 10, 0)
-		user, err := s.Keycloak.GetUserAtETag(r.Context(), getUserID(r), etag)
-		if err != nil {
-			renderSystemError(w, "error while fetching user: %s", err)
-			return
-		}
-
-		viewData := map[string]any{
-			"page":            "profile",
-			"user":            user,
-			"prices":          payment.CalculateDiscounts(user, s.PriceCache.GetPrices()),
-			"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
-			"stripePending":   etagString != "" && user.StripeETag < etag,
-		}
-		if user.StripeCancelationTime > 0 {
-			viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
-		}
-
-		s.Templates.ExecuteTemplate(w, "profile.html", viewData)
+		profile.Templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
 

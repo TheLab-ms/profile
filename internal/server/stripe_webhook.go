@@ -95,8 +95,9 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 	}
 }
 
+// TODO: Paypal client?
 func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error {
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalSubscriptionID), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalSubscriptionID), nil)
 	if err != nil {
 		return err
 	}

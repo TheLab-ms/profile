@@ -20,6 +20,9 @@
             <h4>Membership Status: <span class="label label-default">Unknown</span></h4>
             Your recent subscription change has taken effect but isn't visible here yet - refresh the page after a few
             seconds to see it.
+            {{- else if .user.NonBillable }}
+            <h4>Membership Status: <span class="label label-default">Lifetime</span></h4>
+            Your membership has been sponsored for the foreseeable future.
             {{- else if (and .user.StripeSubscriptionID .expiration) }}
             <h4>Membership Status: <span class="label label-default">Canceled</span></h4>
             Your subscription has been canceled. Membership will expire on {{ .expiration }}.
@@ -38,10 +41,12 @@
         </div>
         {{- else }}
         <div class="btn-group" role="group" aria-label="...">
+            {{- if not .user.NonBillable }}
             {{- range .prices }}
             <a href="/profile/stripe?price={{ .ID }}" role="button" class="btn btn-default">
                 Subscribe {{ if .Annual }}yearly{{ else }}monthly{{ end }} at ${{ printf "%.2f" .Price }}
             </a>
+            {{- end }}
             {{- end }}
         </div>
         {{- end }}
