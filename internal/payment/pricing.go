@@ -13,10 +13,14 @@ import (
 // NewCheckoutSessionParams sets the various Stripe checkout options for a new registering member.
 func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *conf.Env, pc *PriceCache, priceID string) *stripe.CheckoutSessionParams {
 	checkoutParams := &stripe.CheckoutSessionParams{
-		Mode:          stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		CustomerEmail: &user.Email,
-		SuccessURL:    stripe.String(env.SelfURL + "/profile"),
-		CancelURL:     stripe.String(env.SelfURL + "/profile"),
+		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		SuccessURL: stripe.String(env.SelfURL + "/profile"),
+		CancelURL:  stripe.String(env.SelfURL + "/profile"),
+	}
+	if user.StripeCustomerID == "" {
+		checkoutParams.CustomerEmail = &user.Email
+	} else {
+		checkoutParams.Customer = &user.StripeCustomerID
 	}
 	checkoutParams.Context = ctx
 

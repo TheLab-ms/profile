@@ -7,12 +7,10 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
-	"github.com/stripe/stripe-go/v78"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/reporting"
@@ -191,52 +189,14 @@ func (k *Keycloak) Deactivate(ctx context.Context, user *User) error {
 }
 
 // TODO: Remove
-func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, customer *stripe.Customer, sub *stripe.Subscription) error {
+func (k *Keycloak) UpdateGroupMembership(ctx context.Context, user *User, active bool) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	kcuser := user.keycloakObject
-	attr := safeGetAttrs(kcuser)
-	active := sub.Status == stripe.SubscriptionStatusActive || sub.Status == stripe.SubscriptionStatusTrialing
-
-	// Don't de-activate accounts when we receive cancelation webhooks for a subscription that is not currently in use.
-	// This shouldn't be possible for any accounts other than tests.
-	if !active && !strings.EqualFold(user.StripeSubscriptionID, sub.ID) {
-		log.Printf("dropping cancelation webhook for user %s because the subscription ID doesn't match the one in keycloak", *kcuser.Email)
-		return nil
-	}
-
-	// Always clean up any old paypal metadata
-	attr["paypalMigrationMetadata"] = []string{}
-
-	if active {
-		attr["stripeID"] = []string{customer.ID}
-		attr["stripeSubscriptionID"] = []string{sub.ID}
-		attr["stripeCancelationTime"] = []string{strconv.FormatInt(sub.CancelAt, 10)}
-
-		if customer.ID != user.StripeCustomerID || sub.ID != user.StripeSubscriptionID {
-			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
-		} else if !user.StripeCancelationTime.After(time.Unix(0, 0)) && sub.CancelAt > 0 {
-			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
-		}
-	} else {
-		// Revoke building access when payment is canceled
-		attr["buildingAccessApprover"] = []string{""}
-	}
-
-	if sub.Metadata != nil {
-		attr["stripeETag"] = []string{sub.Metadata["etag"]}
-	}
-
-	err = k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser)
-	if err != nil {
-		return fmt.Errorf("updating user: %w", err)
-	}
-
-	// TODO: Consider moving to the async path
-	groups, err := k.Client.GetUserGroups(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, gocloak.GetGroupsParams{
+	// TODO: Move to async path
+	groups, err := k.Client.GetUserGroups(ctx, token.AccessToken, k.env.KeycloakRealm, user.UUID, gocloak.GetGroupsParams{
 		Search: gocloak.StringP("thelab-members"),
 	})
 	if err != nil {
@@ -247,11 +207,11 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 	inGroup := len(groups) > 0
 	if !inGroup && active {
 		reporting.DefaultSink.Publish(user.Email, "MembershipActivated", "A change in payment state caused the user's membership to be enabled")
-		err = k.Client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
+		err = k.Client.AddUserToGroup(ctx, token.AccessToken, k.env.KeycloakRealm, user.UUID, k.env.KeycloakMembersGroupID)
 	}
 	if inGroup && !active {
 		reporting.DefaultSink.Publish(user.Email, "MembershipDeactivated", "A change in payment state caused the user's membership to be disabled")
-		err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *kcuser.ID, k.env.KeycloakMembersGroupID)
+		err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, user.UUID, k.env.KeycloakMembersGroupID)
 	}
 	if err != nil {
 		return fmt.Errorf("updating user group membership: %w", err)

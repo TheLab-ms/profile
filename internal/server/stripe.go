@@ -19,8 +19,8 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 			return
 		}
 
-		// If there is an active payment on record for this user, start a session to manage the subscription.
-		if user.StripeCustomerID != "" {
+		// If there is an active subscription on record for this user, start a session to manage the subscription.
+		if user.StripeSubscriptionID != "" {
 			sessionParams := &stripe.BillingPortalSessionParams{
 				Customer:  stripe.String(user.StripeCustomerID),
 				ReturnURL: stripe.String(s.Env.SelfURL + "/profile"),

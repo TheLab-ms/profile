@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/customer"
@@ -75,20 +76,46 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 		}
 
 		// Clean up old paypal sub if it still exists
-		if s.Env.PaypalClientID != "" && s.Env.PaypalClientSecret != "" {
-			if user.PaypalMetadata.TransactionID != "" { // this is removed by UpdateUserStripeInfo
-				err := cancelPaypal(r.Context(), s.Env, user)
-				if err != nil {
-					log.Printf("unable to get cancel Paypal subscription: %s", err)
-					w.WriteHeader(500)
-					return
-				}
+		if s.Env.PaypalClientID != "" && s.Env.PaypalClientSecret != "" && user.PaypalMetadata.TransactionID != "" {
+			err := cancelPaypal(r.Context(), s.Env, user)
+			if err != nil {
+				log.Printf("unable to get cancel Paypal subscription: %s", err)
+				w.WriteHeader(500)
+				return
 			}
 		}
 
-		err = s.Keycloak.UpdateUserStripeInfo(r.Context(), user, customer, sub)
+		// No more paypal since they're in Stripe!
+		user.PaypalMetadata = keycloak.PaypalMetadata{}
+
+		active := sub.Status == stripe.SubscriptionStatusActive || sub.Status == stripe.SubscriptionStatusTrialing
+		if active {
+			user.StripeCustomerID = customer.ID
+			user.StripeSubscriptionID = sub.ID
+			user.StripeCancelationTime = time.Unix(sub.CancelAt, 0)
+
+			if customer.ID != user.StripeCustomerID || sub.ID != user.StripeSubscriptionID {
+				reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
+			} else if !user.StripeCancelationTime.After(time.Unix(0, 0)) && sub.CancelAt > 0 {
+				reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
+			}
+		} else {
+			// Revoke building access when payment is canceled
+			// TODO: Does this include the period between cancelation and expiration?
+			user.BuildingAccessApprover = ""
+			user.StripeSubscriptionID = ""
+		}
+
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			log.Printf("error while updating Keycloak for Stripe subscription webhook event: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		err = s.Keycloak.UpdateGroupMembership(r.Context(), user, active)
+		if err != nil {
+			log.Printf("error while updating Keycloak group membership for Stripe subscription webhook event: %s", err)
 			w.WriteHeader(500)
 			return
 		}
