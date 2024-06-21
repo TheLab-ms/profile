@@ -164,6 +164,17 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 	return newUser(kcusers[0])
 }
 
+func (k *Keycloak) WriteUser(ctx context.Context, user *User) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	kcuser := gocloak.User{}
+	mapFromUserType(&kcuser, user)
+	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, kcuser)
+}
+
 func (k *Keycloak) EnableUserBuildingAccess(ctx context.Context, user *User, approver string, fobID int) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
