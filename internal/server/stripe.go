@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
-	"github.com/stripe/stripe-go/v75"
-	billingsession "github.com/stripe/stripe-go/v75/billingportal/session"
-	"github.com/stripe/stripe-go/v75/checkout/session"
+	"github.com/stripe/stripe-go/v78"
+	billingsession "github.com/stripe/stripe-go/v78/billingportal/session"
+	"github.com/stripe/stripe-go/v78/checkout/session"
 
 	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/TheLab-ms/profile/internal/reporting"

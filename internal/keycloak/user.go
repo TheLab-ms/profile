@@ -43,6 +43,7 @@ type User struct {
 func newUser(kcuser *gocloak.User) (*User, error) {
 	u := &User{}
 	mapToUserType(kcuser, u)
+	u.keycloakObject = kcuser
 	return u, nil
 }
 

@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v78"
 
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"

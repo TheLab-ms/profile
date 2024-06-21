@@ -6,26 +6,26 @@ toolchain go1.21.1
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.8.0
-	github.com/jackc/pgx v3.6.2+incompatible
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.18.0
-	github.com/stripe/stripe-go/v75 v75.11.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	github.com/stretchr/testify v1.8.4
+	github.com/stripe/stripe-go/v78 v78.12.0
+	github.com/teambition/rrule-go v1.8.2
 	golang.org/x/time v0.5.0
 )
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bwmarrin/discordgo v0.28.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
-	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgconn v1.14.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -43,10 +43,6 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
-	github.com/teambition/rrule-go v1.8.2 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect

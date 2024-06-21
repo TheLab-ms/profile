@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
-	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v78"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/reporting"
@@ -536,13 +536,12 @@ func (k *Keycloak) reportMetrics() {
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
-	if kcuser.Attributes != nil {
+	if kcuser != nil && kcuser.Attributes != nil {
 		return *kcuser.Attributes
 	}
 	attr := map[string][]string{}
 	kcuser.Attributes = &attr
 	return attr
-
 }
 
 func safeGetAttr(kcuser *gocloak.User, key string) string {

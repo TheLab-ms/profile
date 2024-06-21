@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/timeutil"
-	"github.com/stripe/stripe-go/v75"
-	"github.com/stripe/stripe-go/v75/coupon"
-	"github.com/stripe/stripe-go/v75/price"
-	"github.com/stripe/stripe-go/v75/product"
+	"github.com/stripe/stripe-go/v78"
+	"github.com/stripe/stripe-go/v78/coupon"
+	"github.com/stripe/stripe-go/v78/price"
+	"github.com/stripe/stripe-go/v78/product"
 )
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.

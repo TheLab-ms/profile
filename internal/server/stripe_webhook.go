@@ -10,10 +10,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/stripe/stripe-go/v75"
-	"github.com/stripe/stripe-go/v75/customer"
-	"github.com/stripe/stripe-go/v75/subscription"
-	"github.com/stripe/stripe-go/v75/webhook"
+	"github.com/stripe/stripe-go/v78"
+	"github.com/stripe/stripe-go/v78/customer"
+	"github.com/stripe/stripe-go/v78/subscription"
+	"github.com/stripe/stripe-go/v78/webhook"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/keycloak"

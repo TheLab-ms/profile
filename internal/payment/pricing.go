@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v78"
 
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/keycloak"
