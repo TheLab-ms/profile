@@ -17,7 +17,7 @@ import (
 	"github.com/stripe/stripe-go/v78/webhook"
 
 	"github.com/TheLab-ms/profile/internal/conf"
-	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
@@ -86,7 +86,7 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 		}
 
 		// No more paypal since they're in Stripe!
-		user.PaypalMetadata = keycloak.PaypalMetadata{}
+		user.PaypalMetadata = datamodel.PaypalMetadata{}
 
 		active := sub.Status == stripe.SubscriptionStatusActive || sub.Status == stripe.SubscriptionStatusTrialing
 		if active {
@@ -123,7 +123,7 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 }
 
 // TODO: Paypal client?
-func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error {
+func cancelPaypal(ctx context.Context, env *conf.Env, user *datamodel.User) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalMetadata.TransactionID), nil)
 	if err != nil {
 		return err

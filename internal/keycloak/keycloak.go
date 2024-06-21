@@ -13,6 +13,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
@@ -105,7 +106,7 @@ func (k *Keycloak) BadgeIDInUse(ctx context.Context, id int) (bool, error) {
 	return len(users) > 0, nil
 }
 
-func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
+func (k *Keycloak) GetUser(ctx context.Context, userID string) (*datamodel.User, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)
@@ -122,7 +123,7 @@ func (k *Keycloak) GetUser(ctx context.Context, userID string) (*User, error) {
 	return newUser(kcuser)
 }
 
-func (k *Keycloak) GetUserByAttribute(ctx context.Context, key, val string) (*User, error) {
+func (k *Keycloak) GetUserByAttribute(ctx context.Context, key, val string) (*datamodel.User, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)
@@ -142,7 +143,7 @@ func (k *Keycloak) GetUserByAttribute(ctx context.Context, key, val string) (*Us
 	return newUser(users[0])
 }
 
-func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*datamodel.User, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)
@@ -161,7 +162,7 @@ func (k *Keycloak) GetUserByEmail(ctx context.Context, email string) (*User, err
 	return newUser(kcusers[0])
 }
 
-func (k *Keycloak) WriteUser(ctx context.Context, user *User) error {
+func (k *Keycloak) WriteUser(ctx context.Context, user *datamodel.User) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
@@ -172,13 +173,13 @@ func (k *Keycloak) WriteUser(ctx context.Context, user *User) error {
 	return k.Client.UpdateUser(ctx, token.AccessToken, k.env.KeycloakRealm, kcuser)
 }
 
-func (k *Keycloak) Deactivate(ctx context.Context, user *User) error {
+func (k *Keycloak) Deactivate(ctx context.Context, user *datamodel.User) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, *user.keycloakObject.ID, k.env.KeycloakMembersGroupID)
+	err = k.Client.DeleteUserFromGroup(ctx, token.AccessToken, k.env.KeycloakRealm, user.UUID, k.env.KeycloakMembersGroupID)
 	if err != nil {
 		return err
 	}
@@ -189,7 +190,7 @@ func (k *Keycloak) Deactivate(ctx context.Context, user *User) error {
 }
 
 // TODO: Remove
-func (k *Keycloak) UpdateGroupMembership(ctx context.Context, user *User, active bool) error {
+func (k *Keycloak) UpdateGroupMembership(ctx context.Context, user *datamodel.User, active bool) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)
@@ -220,7 +221,7 @@ func (k *Keycloak) UpdateGroupMembership(ctx context.Context, user *User, active
 	return nil
 }
 
-func (k *Keycloak) ExtendUser(ctx context.Context, user *User) (*ExtendedUser, error) {
+func (k *Keycloak) ExtendUser(ctx context.Context, user *datamodel.User) (*ExtendedUser, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)

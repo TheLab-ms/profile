@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile"
-	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/payment"
 )
 
@@ -29,7 +29,7 @@ func (s *Server) newProfileViewHandler() http.HandlerFunc {
 	}
 }
 
-func renderProfile(w io.Writer, user *keycloak.User, prices []*payment.Price) error {
+func renderProfile(w io.Writer, user *datamodel.User, prices []*payment.Price) error {
 	viewData := map[string]any{
 		"page":            "profile",
 		"user":            user,

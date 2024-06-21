@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,12 +19,12 @@ func TestRenderProfile(t *testing.T) {
 	tests := []struct {
 		Name    string
 		Fixture string
-		User    *keycloak.User
+		User    *datamodel.User
 	}{
 		{
 			Name:    "basic stripe member",
 			Fixture: "basic.html",
-			User: &keycloak.User{
+			User: &datamodel.User{
 				First:         "Steve",
 				Last:          "Ballmer",
 				FobID:         666,
@@ -37,7 +37,7 @@ func TestRenderProfile(t *testing.T) {
 		{
 			Name:    "no payment yet",
 			Fixture: "inactive.html",
-			User: &keycloak.User{
+			User: &datamodel.User{
 				First:         "Steve",
 				Last:          "Ballmer",
 				FobID:         666,
@@ -49,7 +49,7 @@ func TestRenderProfile(t *testing.T) {
 		{
 			Name:    "canceled stripe member",
 			Fixture: "canceled.html",
-			User: &keycloak.User{
+			User: &datamodel.User{
 				First:                 "Steve",
 				Last:                  "Ballmer",
 				FobID:                 666,
@@ -64,7 +64,7 @@ func TestRenderProfile(t *testing.T) {
 		{
 			Name:    "paypal member",
 			Fixture: "paypal.html",
-			User: &keycloak.User{
+			User: &datamodel.User{
 				First:         "Steve",
 				Last:          "Ballmer",
 				FobID:         666,
@@ -72,7 +72,7 @@ func TestRenderProfile(t *testing.T) {
 				WaiverState:   "Signed",
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
-				PaypalMetadata: keycloak.PaypalMetadata{
+				PaypalMetadata: datamodel.PaypalMetadata{
 					Price:         6000,
 					TimeRFC3339:   time.Now(),
 					TransactionID: "foobarbaz",
@@ -82,7 +82,7 @@ func TestRenderProfile(t *testing.T) {
 		{
 			Name:    "non-billable member",
 			Fixture: "nonbillable.html",
-			User: &keycloak.User{
+			User: &datamodel.User{
 				First:         "Steve",
 				Last:          "Ballmer",
 				FobID:         666,

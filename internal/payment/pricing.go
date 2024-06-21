@@ -7,11 +7,11 @@ import (
 	"github.com/stripe/stripe-go/v78"
 
 	"github.com/TheLab-ms/profile/internal/conf"
-	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 )
 
 // NewCheckoutSessionParams sets the various Stripe checkout options for a new registering member.
-func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *conf.Env, pc *PriceCache, priceID string) *stripe.CheckoutSessionParams {
+func NewCheckoutSessionParams(ctx context.Context, user *datamodel.User, env *conf.Env, pc *PriceCache, priceID string) *stripe.CheckoutSessionParams {
 	checkoutParams := &stripe.CheckoutSessionParams{
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		SuccessURL: stripe.String(env.SelfURL + "/profile"),
@@ -42,7 +42,7 @@ func NewCheckoutSessionParams(ctx context.Context, user *keycloak.User, env *con
 	return checkoutParams
 }
 
-func calculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionLineItemParams {
+func calculateLineItems(user *datamodel.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionLineItemParams {
 	// Migrate existing paypal users at their current rate
 	if priceID == "paypal" {
 		interval := "month"
@@ -71,7 +71,7 @@ func calculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*
 	}}
 }
 
-func calculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionDiscountParams {
+func calculateDiscount(user *datamodel.User, priceID string, pc *PriceCache) []*stripe.CheckoutSessionDiscountParams {
 	if user.DiscountType == "" || priceID == "" {
 		return nil
 	}
@@ -85,7 +85,7 @@ func calculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*s
 	return nil
 }
 
-func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
+func calculateBillingCycleAnchor(user *datamodel.User) *int64 {
 	if user.PaypalMetadata.Price == 0 {
 		return nil
 	}
@@ -108,7 +108,7 @@ func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
 	return &ts
 }
 
-func CalculateDiscounts(user *keycloak.User, prices []*Price) []*Price {
+func CalculateDiscounts(user *datamodel.User, prices []*Price) []*Price {
 	if user.DiscountType == "" {
 		return prices
 	}
