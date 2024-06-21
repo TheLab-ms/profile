@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/mail"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -124,7 +125,9 @@ func (s *Server) newContactInfoFormHandler() http.HandlerFunc {
 			return // nothing changed
 		}
 
-		err = s.Keycloak.UpdateUserName(r.Context(), user, first, last)
+		user.First = first
+		user.Last = last
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
@@ -170,7 +173,8 @@ func (s *Server) newDiscordLinkHandler() http.HandlerFunc {
 			return
 		}
 
-		err = s.Keycloak.UpdateDiscordLink(r.Context(), user, discordUserID)
+		user.DiscordUserID, _ = strconv.ParseInt(discordUserID, 10, 0)
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			renderSystemError(w, "error while updating user: %s", err)
 			return

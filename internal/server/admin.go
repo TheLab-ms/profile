@@ -76,7 +76,9 @@ func (s *Server) newAssignFobHandler() http.HandlerFunc {
 			return
 		}
 
-		err = s.Keycloak.EnableUserBuildingAccess(r.Context(), user, getUserID(r), fobID)
+		user.BuildingAccessApprover = getUserID(r)
+		user.FobID = fobID
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			renderSystemError(w, "error while writing to Keycloak: %s", err)
 			return
@@ -94,7 +96,8 @@ func (s *Server) newApplyDiscountHandler() http.HandlerFunc {
 			return
 		}
 
-		err = s.Keycloak.ApplyDiscount(r.Context(), user, r.URL.Query().Get("type"))
+		user.DiscountType = r.URL.Query().Get("type")
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			renderSystemError(w, "error while writing to Keycloak: %s", err)
 			return

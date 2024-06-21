@@ -79,7 +79,8 @@ func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycl
 		}
 
 		limiter.Wait(ctx)
-		err = kc.UpdateLastSwipeTime(ctx, user.User, latest)
+		user.User.LastSwipeTime = latest
+		err = kc.WriteUser(ctx, user.User)
 		if err != nil {
 			return fmt.Errorf("writing latest swipe to user: %w", err)
 		}

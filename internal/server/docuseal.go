@@ -72,7 +72,8 @@ func (s *Server) newDocusealWebhookHandler() http.HandlerFunc {
 			return
 		}
 
-		err = s.Keycloak.UpdateUserWaiverState(r.Context(), user)
+		user.WaiverState = "Signed"
+		err = s.Keycloak.WriteUser(r.Context(), user)
 		if err != nil {
 			log.Printf("error while updating user's waiver state: %s", err)
 			w.WriteHeader(500)

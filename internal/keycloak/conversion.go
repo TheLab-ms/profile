@@ -20,6 +20,8 @@ func mapToUserType(kcuser *gocloak.User, user any) {
 		tag := ft.Tag.Get("keycloak")
 		if tag == "id" {
 			fv.SetString(gocloak.PString(kcuser.ID))
+		} else if tag == "username" {
+			fv.SetString(gocloak.PString(kcuser.Username))
 		} else if tag == "first" {
 			fv.SetString(gocloak.PString(kcuser.FirstName))
 		} else if tag == "last" {
@@ -71,6 +73,8 @@ func mapFromUserType(kcuser *gocloak.User, user any) {
 		tag := ft.Tag.Get("keycloak")
 		if tag == "id" {
 			kcuser.ID = gocloak.StringP(fv.Interface().(string))
+		} else if tag == "username" {
+			kcuser.Username = gocloak.StringP(fv.Interface().(string))
 		} else if tag == "first" {
 			kcuser.FirstName = gocloak.StringP(fv.Interface().(string))
 		} else if tag == "last" {
@@ -87,15 +91,23 @@ func mapFromUserType(kcuser *gocloak.User, user any) {
 		key := strings.TrimPrefix(tag, "attr.")
 		switch val := fv.Interface().(type) {
 		case int:
-			attrs[key] = []string{strconv.Itoa(val)}
+			if val != 0 {
+				attrs[key] = []string{strconv.Itoa(val)}
+			}
 		case int64:
-			attrs[key] = []string{strconv.FormatInt(val, 10)}
+			if val != 0 {
+				attrs[key] = []string{strconv.FormatInt(val, 10)}
+			}
 		case bool:
 			attrs[key] = []string{strconv.FormatBool(val)}
 		case string:
-			attrs[key] = []string{val}
+			if val != "" {
+				attrs[key] = []string{val}
+			}
 		case time.Time:
-			attrs[key] = []string{strconv.FormatInt(val.Unix(), 10)}
+			if val != (time.Time{}) {
+				attrs[key] = []string{strconv.FormatInt(val.Unix(), 10)}
+			}
 		default:
 			raw, _ := json.Marshal(&val)
 			attrs[key] = []string{string(raw)}

@@ -73,7 +73,9 @@ func run() error {
 			continue
 		}
 
-		err = kc.UpdatePaypalMetadata(ctx, user.User, price, current.Billing.LastPayment.Time)
+		user.User.PaypalMetadata.TimeRFC3339 = current.Billing.LastPayment.Time
+		user.User.PaypalMetadata.Price = price
+		err = kc.WriteUser(ctx, user.User)
 		if err != nil {
 			log.Printf("error while updating user Paypal metadata: %s", err)
 			continue

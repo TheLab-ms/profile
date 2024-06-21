@@ -17,6 +17,7 @@ func TestConversion(t *testing.T) {
 		UUID          string     `keycloak:"id"`
 		First         string     `keycloak:"first"`
 		Last          string     `keycloak:"last"`
+		User          string     `keycloak:"username"`
 		Email         string     `keycloak:"email"`
 		EmailVerified bool       `keycloak:"emailVerified"`
 		Str           string     `keycloak:"attr.str"`
@@ -31,6 +32,7 @@ func TestConversion(t *testing.T) {
 		ID:            gocloak.StringP("test-id"),
 		FirstName:     gocloak.StringP("test-first"),
 		LastName:      gocloak.StringP("test-last"),
+		Username:      gocloak.StringP("test-username"),
 		Email:         gocloak.StringP("test-email"),
 		EmailVerified: gocloak.BoolP(true),
 		Attributes: &map[string][]string{
@@ -50,6 +52,7 @@ func TestConversion(t *testing.T) {
 		UUID:          "test-id",
 		First:         "test-first",
 		Last:          "test-last",
+		User:          "test-username",
 		Email:         "test-email",
 		EmailVerified: true,
 		Str:           "test-str",

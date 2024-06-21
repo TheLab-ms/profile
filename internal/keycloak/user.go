@@ -15,6 +15,7 @@ type PaypalMetadata struct {
 type User struct {
 	PaypalMetadata         `keycloak:"attr.paypalMigrationMetadata"`
 	UUID                   string    `keycloak:"id"`
+	Username               string    `keycloak:"username"`
 	First                  string    `keycloak:"first"`
 	Last                   string    `keycloak:"last"`
 	Email                  string    `keycloak:"email"`
