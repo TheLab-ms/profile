@@ -76,7 +76,7 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 
 		// Clean up old paypal sub if it still exists
 		if s.Env.PaypalClientID != "" && s.Env.PaypalClientSecret != "" {
-			if user.PaypalSubscriptionID != "" { // this is removed by UpdateUserStripeInfo
+			if user.PaypalMetadata.TransactionID != "" { // this is removed by UpdateUserStripeInfo
 				err := cancelPaypal(r.Context(), s.Env, user)
 				if err != nil {
 					log.Printf("unable to get cancel Paypal subscription: %s", err)
@@ -97,7 +97,7 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 
 // TODO: Paypal client?
 func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalSubscriptionID), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", user.PaypalMetadata.TransactionID), nil)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 	defer getResp.Body.Close()
 
 	if getResp.StatusCode == 404 {
-		log.Printf("not canceling paypal subscription because it doesn't exist: %s", user.PaypalSubscriptionID)
+		log.Printf("not canceling paypal subscription because it doesn't exist: %s", user.PaypalMetadata.TransactionID)
 		return nil
 	}
 	if getResp.StatusCode > 299 {
@@ -125,12 +125,12 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 		return err
 	}
 	if current.Status == "CANCELLED" {
-		log.Printf("not canceling paypal subscription because it's already canceled: %s", user.PaypalSubscriptionID)
+		log.Printf("not canceling paypal subscription because it's already canceled: %s", user.PaypalMetadata.TransactionID)
 		return nil
 	}
 
 	body := bytes.NewBufferString(`{ "reason": "migrated account" }`)
-	req, err = http.NewRequest("POST", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s/cancel", user.PaypalSubscriptionID), body)
+	req, err = http.NewRequest("POST", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s/cancel", user.PaypalMetadata.TransactionID), body)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 	defer postResp.Body.Close()
 
 	if postResp.StatusCode == 404 {
-		log.Printf("not canceling paypal subscription because it doesn't exist even after previous check: %s", user.PaypalSubscriptionID)
+		log.Printf("not canceling paypal subscription because it doesn't exist even after previous check: %s", user.PaypalMetadata.TransactionID)
 		return nil
 	}
 	if postResp.StatusCode > 299 {
@@ -152,7 +152,7 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *keycloak.User) error
 		return fmt.Errorf("non-200 response from Paypal when canceling: %d - %s", postResp.StatusCode, body)
 	}
 
-	log.Printf("canceled paypal subscription: %s", user.PaypalSubscriptionID)
+	log.Printf("canceled paypal subscription: %s", user.PaypalMetadata.TransactionID)
 	reporting.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
 	return nil
 }

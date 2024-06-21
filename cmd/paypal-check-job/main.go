@@ -43,24 +43,24 @@ func run() error {
 
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*500), 1)
 	for _, user := range users {
-		if !user.ActiveMember || user.PaypalSubscriptionID == "" || user.StripeCustomerID != "" {
+		if !user.ActiveMember || user.PaypalMetadata.TransactionID == "" || user.StripeCustomerID != "" {
 			continue
 		}
 		limiter.Wait(ctx)
 
-		current, err := getSubscriptionMetadata(ctx, env, user.PaypalSubscriptionID)
+		current, err := getSubscriptionMetadata(ctx, env, user.PaypalMetadata.TransactionID)
 		if err != nil {
 			log.Printf("error while getting paypal subscription for member %s: %s", user.Email, err)
 			continue
 		}
 		if current == nil {
-			log.Printf("no subscription found for id %s", user.PaypalSubscriptionID)
+			log.Printf("no subscription found for id %s", user.PaypalMetadata.TransactionID)
 			continue
 		}
 		active := current.Status != "CANCELLED"
 		price, _ := strconv.ParseFloat(current.Billing.LastPayment.Amount.Value, 64)
 
-		log.Printf("paypal subscription %s is in state active=%t for member %s who last visited on %s", user.PaypalSubscriptionID, active, user.Email, user.LastSwipeTime.Format("2006-01-02"))
+		log.Printf("paypal subscription %s is in state active=%t for member %s who last visited on %s", user.PaypalMetadata.TransactionID, active, user.Email, user.LastSwipeTime.Format("2006-01-02"))
 		if !active {
 			err = kc.Deactivate(ctx, user.User)
 			if err != nil {
@@ -69,7 +69,7 @@ func run() error {
 			continue
 		}
 
-		if price == user.LastPaypalTransactionPrice && current.Billing.LastPayment.Time == user.LastPaypalTransactionTime {
+		if price == user.PaypalMetadata.Price && current.Billing.LastPayment.Time == user.PaypalMetadata.TimeRFC3339 {
 			continue
 		}
 

@@ -34,10 +34,10 @@ func renderProfile(w io.Writer, user *keycloak.User, prices []*payment.Price) er
 		"page":            "profile",
 		"user":            user,
 		"prices":          prices,
-		"migratedAccount": user.LastPaypalTransactionTime != time.Time{},
+		"migratedAccount": user.PaypalMetadata.TimeRFC3339.After(time.Time{}),
 	}
-	if user.StripeCancelationTime > 0 {
-		viewData["expiration"] = time.Unix(user.StripeCancelationTime, 0).Format("01/02/06")
+	if user.StripeCancelationTime.After(time.Unix(0, 0)) {
+		viewData["expiration"] = user.StripeCancelationTime.Format("01/02/06")
 	}
 
 	return profile.Templates.ExecuteTemplate(w, "profile.html", viewData)

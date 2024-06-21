@@ -30,7 +30,7 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 		for _, user := range users {
 			cw.Write([]string{
 				user.First, user.Last, user.Email,
-				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.SignedWaiver),
+				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.WaiverState == "Signed"),
 				user.PaymentStatus(), strconv.FormatBool(user.ActiveMember),
 				user.DiscountType, strconv.Itoa(user.FobID),
 				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339),

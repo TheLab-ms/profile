@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Test without signed waiver, verified email, name, etc.
+
 func TestRenderProfile(t *testing.T) {
 	tests := []struct {
 		Name    string
@@ -27,7 +29,7 @@ func TestRenderProfile(t *testing.T) {
 				Last:          "Ballmer",
 				FobID:         666,
 				EmailVerified: true,
-				SignedWaiver:  true,
+				WaiverState:   "Signed",
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
 			},
@@ -40,7 +42,7 @@ func TestRenderProfile(t *testing.T) {
 				Last:          "Ballmer",
 				FobID:         666,
 				EmailVerified: true,
-				SignedWaiver:  true,
+				WaiverState:   "Signed",
 				Email:         "developers@microsoft.com",
 			},
 		},
@@ -52,27 +54,29 @@ func TestRenderProfile(t *testing.T) {
 				Last:                  "Ballmer",
 				FobID:                 666,
 				EmailVerified:         true,
-				SignedWaiver:          true,
+				WaiverState:           "Signed",
 				Email:                 "developers@microsoft.com",
 				DiscountType:          "developersdevelopersdevelopers",
 				StripeSubscriptionID:  "foo",
-				StripeCancelationTime: time.Now().Add(-time.Hour).Unix(),
+				StripeCancelationTime: time.Now().Add(-time.Hour),
 			},
 		},
 		{
 			Name:    "paypal member",
 			Fixture: "paypal.html",
 			User: &keycloak.User{
-				First:                      "Steve",
-				Last:                       "Ballmer",
-				FobID:                      666,
-				EmailVerified:              true,
-				SignedWaiver:               true,
-				Email:                      "developers@microsoft.com",
-				DiscountType:               "developersdevelopersdevelopers",
-				LastPaypalTransactionTime:  time.Now(),
-				LastPaypalTransactionPrice: 6000,
-				PaypalSubscriptionID:       "foobarbaz",
+				First:         "Steve",
+				Last:          "Ballmer",
+				FobID:         666,
+				EmailVerified: true,
+				WaiverState:   "Signed",
+				Email:         "developers@microsoft.com",
+				DiscountType:  "developersdevelopersdevelopers",
+				PaypalMetadata: keycloak.PaypalMetadata{
+					Price:         6000,
+					TimeRFC3339:   time.Now(),
+					TransactionID: "foobarbaz",
+				},
 			},
 		},
 		{
@@ -83,7 +87,7 @@ func TestRenderProfile(t *testing.T) {
 				Last:          "Ballmer",
 				FobID:         666,
 				EmailVerified: true,
-				SignedWaiver:  true,
+				WaiverState:   "Signed",
 				Email:         "developers@microsoft.com",
 				DiscountType:  "developersdevelopersdevelopers",
 				NonBillable:   true,

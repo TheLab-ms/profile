@@ -2,85 +2,98 @@ package keycloak
 
 import (
 	"encoding/json"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
 )
 
+type PaypalMetadata struct {
+	Price         float64
+	TimeRFC3339   time.Time
+	TransactionID string
+}
+
 type User struct {
-	UUID                        string
-	First, Last, Email          string
-	FobID                       int
-	EmailVerified, SignedWaiver bool
-	NonBillable                 bool
-	DiscountType                string
-	AdminNotes                  string // for leadership only!
-	BuildingAccessApproved      bool
-	SignupTime                  time.Time
-	LastSwipeTime               time.Time
+	PaypalMetadata         `keycloak:"attr.paypalMigrationMetadata"`
+	UUID                   string    `keycloak:"id"`
+	First                  string    `keycloak:"first"`
+	Last                   string    `keycloak:"last"`
+	Email                  string    `keycloak:"email"`
+	EmailVerified          bool      `keycloak:"emailVerified"`
+	FobID                  int       `keycloak:"attr.fobID"`
+	WaiverState            string    `keycloak:"attr.waiverState"`
+	NonBillable            bool      `keycloak:"attr.nonBillable"`
+	DiscountType           string    `keycloak:"attr.discountType"`
+	BuildingAccessApprover string    `keycloak:"attr.buildingAccessApprover"`
+	SignupTime             time.Time `keycloak:"attr.signupEpochTimeUTC"`
+	LastSwipeTime          time.Time `keycloak:"attr.lastSwipeTime"`
+	DiscordUserID          int64     `keycloak:"attr.discordUserID"`
 
-	DiscordUserID int64
-
-	StripeCustomerID      string
-	StripeSubscriptionID  string
-	StripeCancelationTime int64
-
-	LastPaypalTransactionPrice float64
-	LastPaypalTransactionTime  time.Time
-	PaypalSubscriptionID       string
+	StripeCustomerID      string    `keycloak:"attr.stripeID"`
+	StripeSubscriptionID  string    `keycloak:"attr.stripeSubscriptionID"`
+	StripeCancelationTime time.Time `keycloak:"attr.stripeCancelationTime"`
 
 	keycloakObject *gocloak.User
 }
 
+// TODO: Replace
 func newUser(kcuser *gocloak.User) (*User, error) {
-	user := &User{
-		UUID:                   gocloak.PString(kcuser.ID),
-		First:                  gocloak.PString(kcuser.FirstName),
-		Last:                   gocloak.PString(kcuser.LastName),
-		Email:                  gocloak.PString(kcuser.Email),
-		EmailVerified:          *gocloak.BoolP(*kcuser.EmailVerified),
-		SignedWaiver:           safeGetAttr(kcuser, "waiverState") == "Signed",
-		NonBillable:            safeGetAttr(kcuser, "nonBillable") != "",
-		DiscountType:           safeGetAttr(kcuser, "discountType"),
-		StripeSubscriptionID:   safeGetAttr(kcuser, "stripeSubscriptionID"),
-		BuildingAccessApproved: safeGetAttr(kcuser, "buildingAccessApprover") != "",
-		StripeCustomerID:       safeGetAttr(kcuser, "stripeID"),
-		keycloakObject:         kcuser,
-	}
-	user.FobID, _ = strconv.Atoi(safeGetAttr(kcuser, "keyfobID"))
-	user.StripeCancelationTime, _ = strconv.ParseInt(safeGetAttr(kcuser, "stripeCancelationTime"), 10, 0)
-	user.DiscordUserID, _ = strconv.ParseInt(safeGetAttr(kcuser, "discordUserID"), 10, 0)
-
-	signupTime, _ := strconv.Atoi(safeGetAttr(kcuser, "signupEpochTimeUTC"))
-	if signupTime > 0 {
-		user.SignupTime = time.Unix(int64(signupTime), 0).Local()
-	}
-
-	lastSwipeTime, _ := strconv.Atoi(safeGetAttr(kcuser, "lastSwipeTime"))
-	if lastSwipeTime > 0 {
-		user.LastSwipeTime = time.Unix(int64(lastSwipeTime), 0).Local()
-	}
-
-	if js := safeGetAttr(kcuser, "paypalMigrationMetadata"); js != "" {
-		s := paypalMetadata{}
-		err := json.Unmarshal([]byte(js), &s)
-		if err != nil {
-			return nil, err
-		}
-
-		user.LastPaypalTransactionPrice = s.Price
-		user.PaypalSubscriptionID = s.TransactionID
-		user.LastPaypalTransactionTime, _ = time.Parse(time.RFC3339, s.TimeRFC3339)
-	}
-
-	return user, nil
+	u := &User{}
+	mapToUserType(kcuser, u)
+	return u, nil
 }
 
-type paypalMetadata struct {
-	Price         float64
-	TimeRFC3339   string
-	TransactionID string
+func mapToUserType(kcuser *gocloak.User, user any) {
+	rt := reflect.TypeOf(user).Elem()
+	rv := reflect.ValueOf(user).Elem()
+
+	for i := 0; i < rv.NumField(); i++ {
+		ft := rt.Field(i)
+		fv := rv.Field(i)
+		tag := ft.Tag.Get("keycloak")
+		if tag == "id" {
+			fv.SetString(gocloak.PString(kcuser.ID))
+		} else if tag == "first" {
+			fv.SetString(gocloak.PString(kcuser.FirstName))
+		} else if tag == "last" {
+			fv.SetString(gocloak.PString(kcuser.LastName))
+		} else if tag == "email" {
+			fv.SetString(gocloak.PString(kcuser.Email))
+		} else if tag == "emailVerified" {
+			fv.SetBool(gocloak.PBool(kcuser.EmailVerified))
+		}
+		if !strings.HasPrefix(tag, "attr.") {
+			continue
+		}
+
+		key := strings.TrimPrefix(tag, "attr.")
+		val := safeGetAttr(kcuser, key)
+		if val == "" {
+			continue
+		}
+		tn := rv.Field(i).Type().String()
+		switch tn {
+		case "int", "int64":
+			i, _ := strconv.ParseInt(val, 10, 0)
+			fv.SetInt(i)
+		case "bool":
+			b, _ := strconv.ParseBool(val)
+			fv.SetBool(b)
+		case "string":
+			fv.SetString(val)
+		case "time.Time":
+			i, _ := strconv.ParseInt(val, 10, 0)
+			t := time.Unix(i, 0)
+			fv.Set(reflect.ValueOf(t))
+		default:
+			v := reflect.New(ft.Type).Interface()
+			json.Unmarshal([]byte(val), &v)
+			fv.Set(reflect.ValueOf(v).Elem())
+		}
+	}
 }
 
 type ExtendedUser struct {
@@ -95,7 +108,7 @@ func (u *User) PaymentStatus() string {
 	if u.StripeSubscriptionID != "" {
 		return "StripeActive"
 	}
-	if u.PaypalSubscriptionID != "" {
+	if u.PaypalMetadata.TransactionID != "" {
 		return "Paypal"
 	}
 	return "InactiveOrUnknown"

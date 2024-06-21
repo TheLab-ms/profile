@@ -42,11 +42,11 @@ func calculateLineItems(user *keycloak.User, priceID string, pc *PriceCache) []*
 	// Migrate existing paypal users at their current rate
 	if priceID == "paypal" {
 		interval := "month"
-		if user.LastPaypalTransactionPrice > 50 {
+		if user.PaypalMetadata.Price > 50 {
 			interval = "year"
 		}
 
-		cents := user.LastPaypalTransactionPrice * 100
+		cents := user.PaypalMetadata.Price * 100
 		productID := pc.GetPrices()[0].ProductID // all prices reference the same product
 		return []*stripe.CheckoutSessionLineItemParams{{
 			Quantity: stripe.Int64(1),
@@ -82,17 +82,17 @@ func calculateDiscount(user *keycloak.User, priceID string, pc *PriceCache) []*s
 }
 
 func calculateBillingCycleAnchor(user *keycloak.User) *int64 {
-	if user.LastPaypalTransactionPrice == 0 {
+	if user.PaypalMetadata.Price == 0 {
 		return nil
 	}
 
 	var end time.Time
-	if user.LastPaypalTransactionPrice > 41 {
+	if user.PaypalMetadata.Price > 41 {
 		// Annual
-		end = user.LastPaypalTransactionTime.Add(time.Hour * 24 * 365)
+		end = user.PaypalMetadata.TimeRFC3339.Add(time.Hour * 24 * 365)
 	} else {
 		// Monthly
-		end = user.LastPaypalTransactionTime.Add(time.Hour * 24 * 30)
+		end = user.PaypalMetadata.TimeRFC3339.Add(time.Hour * 24 * 30)
 	}
 
 	// Stripe will throw an error if the cycle anchor is before the current time

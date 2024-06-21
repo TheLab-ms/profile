@@ -1,4 +1,4 @@
-{{- if not .user.SignedWaiver }}
+{{- if not (eq .user.WaiverState "Signed")}}
 <div class="panel panel-success">
     <div class="panel-heading">
         <h3 class="panel-title">Waiver</h3>

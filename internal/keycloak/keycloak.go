@@ -241,10 +241,10 @@ func (k *Keycloak) UpdatePaypalMetadata(ctx context.Context, user *User, price f
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	buf, err := json.Marshal(&paypalMetadata{
+	buf, err := json.Marshal(&PaypalMetadata{
 		Price:         price,
-		TimeRFC3339:   lastTX.Format(time.RFC3339),
-		TransactionID: user.PaypalSubscriptionID,
+		TimeRFC3339:   lastTX,
+		TransactionID: user.PaypalMetadata.TransactionID,
 	})
 	if err != nil {
 		return fmt.Errorf("encoding: %w", err)
@@ -298,7 +298,7 @@ func (k *Keycloak) UpdateUserStripeInfo(ctx context.Context, user *User, custome
 
 		if customer.ID != user.StripeCustomerID || sub.ID != user.StripeSubscriptionID {
 			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
-		} else if user.StripeCancelationTime == 0 && sub.CancelAt > 0 {
+		} else if !user.StripeCancelationTime.After(time.Unix(0, 0)) && sub.CancelAt > 0 {
 			reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
 		}
 	} else {
