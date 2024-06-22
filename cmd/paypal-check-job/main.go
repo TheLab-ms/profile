@@ -42,8 +42,9 @@ func run() error {
 	}
 
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*500), 1)
-	for _, user := range users {
-		if !user.ActiveMember || user.PaypalMetadata.TransactionID == "" || user.StripeCustomerID != "" {
+	for _, extended := range users {
+		user := extended.User
+		if !extended.ActiveMember || user.PaypalMetadata.TransactionID == "" || user.StripeCustomerID != "" {
 			continue
 		}
 		limiter.Wait(ctx)
@@ -62,7 +63,7 @@ func run() error {
 
 		log.Printf("paypal subscription %s is in state active=%t for member %s who last visited on %s", user.PaypalMetadata.TransactionID, active, user.Email, user.LastSwipeTime.Format("2006-01-02"))
 		if !active {
-			err = kc.Deactivate(ctx, user.User)
+			err = kc.Deactivate(ctx, user)
 			if err != nil {
 				log.Printf("error while deactivating user: %s", err)
 			}
@@ -73,9 +74,9 @@ func run() error {
 			continue
 		}
 
-		user.User.PaypalMetadata.TimeRFC3339 = current.Billing.LastPayment.Time
-		user.User.PaypalMetadata.Price = price
-		err = kc.WriteUser(ctx, user.User)
+		user.PaypalMetadata.TimeRFC3339 = current.Billing.LastPayment.Time
+		user.PaypalMetadata.Price = price
+		err = kc.WriteUser(ctx, user)
 		if err != nil {
 			log.Printf("error while updating user Paypal metadata: %s", err)
 			continue

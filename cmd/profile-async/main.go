@@ -97,7 +97,8 @@ func main() {
 				log.Printf("error while listing members for resync: %s", err)
 				return
 			}
-			for _, user := range users {
+			for _, extended := range users {
+				user := extended.User
 				if user.DiscordUserID > 0 {
 					discordUsers.Add(user.DiscordUserID)
 				}

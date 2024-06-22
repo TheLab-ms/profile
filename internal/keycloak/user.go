@@ -13,6 +13,6 @@ func newUser(kcuser *gocloak.User) (*datamodel.User, error) {
 }
 
 type ExtendedUser struct {
-	*datamodel.User
+	User         *datamodel.User
 	ActiveMember bool
 }

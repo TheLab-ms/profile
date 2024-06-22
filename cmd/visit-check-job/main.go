@@ -60,10 +60,11 @@ func run() error {
 
 func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
-	for _, user := range users {
-		if !user.ActiveMember {
+	for _, extended := range users {
+		if !extended.ActiveMember {
 			continue
 		}
+		user := extended.User
 
 		name := fmt.Sprintf("%s %s", user.First, user.Last)
 		latest, ok, err := reporting.DefaultSink.GetLatestSwipe(ctx, name, user.LastSwipeTime)
@@ -79,12 +80,12 @@ func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycl
 		}
 
 		limiter.Wait(ctx)
-		user.User.LastSwipeTime = latest
-		err = kc.WriteUser(ctx, user.User)
+		user.LastSwipeTime = latest
+		err = kc.WriteUser(ctx, user)
 		if err != nil {
 			return fmt.Errorf("writing latest swipe to user: %w", err)
 		}
-		log.Printf("updated last visit time for user %q (%s->%s)", user.User.Email, user.LastSwipeTime, latest)
+		log.Printf("updated last visit time for user %q (%s->%s)", user.Email, user.LastSwipeTime, latest)
 	}
 	return nil
 }
@@ -95,8 +96,9 @@ var absentThres = time.Hour * 24 * 100
 
 func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
-	for _, user := range users {
-		if !user.ActiveMember || user.NonBillable {
+	for _, extended := range users {
+		user := extended.User
+		if !extended.ActiveMember || user.NonBillable {
 			continue
 		}
 

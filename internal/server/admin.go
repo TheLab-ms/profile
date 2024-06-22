@@ -27,11 +27,13 @@ func (s *Server) newAdminDumpHandler() http.HandlerFunc {
 			"Signup Timestamp", "Last Visit Timestamp",
 		})
 
-		for _, user := range users {
+		for _, extended := range users {
+			user := extended.User
 			cw.Write([]string{
+				// TODO: Include building approver?
 				user.First, user.Last, user.Email,
 				strconv.FormatBool(user.EmailVerified), strconv.FormatBool(user.WaiverState == "Signed"),
-				user.PaymentStatus(), strconv.FormatBool(user.ActiveMember),
+				user.PaymentStatus(), strconv.FormatBool(extended.ActiveMember),
 				user.DiscountType, strconv.Itoa(user.FobID),
 				user.SignupTime.Format(time.RFC3339), user.LastSwipeTime.Format(time.RFC3339),
 			})
