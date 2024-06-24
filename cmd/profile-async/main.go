@@ -11,13 +11,13 @@ import (
 
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/reporting"
-	"github.com/TheLab-ms/profile/internal/timeutil"
 )
 
-func syncKeycloak(ctx context.Context, kc *keycloak.Keycloak, userID string) error {
+func syncKeycloak(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], userID string) error {
 	_, err := kc.GetUser(ctx, userID)
 	if errors.Is(err, keycloak.ErrNotFound) {
 		return nil // ignore any users that have been deleted since being enqueued
@@ -29,7 +29,7 @@ func syncKeycloak(ctx context.Context, kc *keycloak.Keycloak, userID string) err
 	return nil
 }
 
-func syncDiscord(ctx context.Context, kc *keycloak.Keycloak, bot *chatbot.Bot, userID int64) error {
+func syncDiscord(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], bot *chatbot.Bot, userID int64) error {
 	user, err := kc.GetUserByAttribute(ctx, "discordUserID", strconv.FormatInt(userID, 10))
 	if errors.Is(keycloak.ErrNotFound, err) {
 		// ignore 404s since we may still need to clean up the role
@@ -42,7 +42,7 @@ func syncDiscord(ctx context.Context, kc *keycloak.Keycloak, bot *chatbot.Bot, u
 	status := &chatbot.UserStatus{ID: userID}
 	if user != nil {
 		status.Email = user.Email
-		extended, err := kc.ExtendUser(ctx, user)
+		extended, err := kc.ExtendUser(ctx, user, user.UUID)
 		if err != nil {
 			return fmt.Errorf("extending user: %w", err)
 		}
@@ -62,18 +62,19 @@ func main() {
 	env := &conf.Env{}
 	env.MustLoad()
 
-	var err error
-	reporting.DefaultSink, err = reporting.NewSink(env)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	discordUsers := flowcontrol.NewQueue[int64]()
 	go discordUsers.Run(ctx)
 	keycloakUsers := flowcontrol.NewQueue[string]()
 	go keycloakUsers.Run(ctx)
 
-	kc := keycloak.New(env)
+	kc := keycloak.New[*datamodel.User](env)
+
+	var err error
+	reporting.DefaultSink, err = reporting.NewSink(env, kc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	bot, err := chatbot.NewBot(env)
 	if err != nil {
 		log.Fatal(err)
@@ -88,14 +89,13 @@ func main() {
 	}
 
 	// Keycloak resync loop
-	go (&timeutil.Loop{
-		Interval: time.Hour * 2,
-		Handler: func(ctx context.Context) {
+	go (&flowcontrol.Loop{
+		Handler: flowcontrol.RetryHandler(time.Hour*2, func(ctx context.Context) bool {
 			log.Printf("resyncing keycloak users...")
 			users, err := kc.ListUsers(ctx)
 			if err != nil {
 				log.Printf("error while listing members for resync: %s", err)
-				return
+				return false
 			}
 			for _, extended := range users {
 				user := extended.User
@@ -104,22 +104,23 @@ func main() {
 				}
 				keycloakUsers.Add(user.UUID)
 			}
-		},
+			return true
+		}),
 	}).Run(ctx)
 
 	// Discord resync loop
-	go (&timeutil.Loop{
-		Interval: time.Hour * 24,
-		Handler: func(ctx context.Context) {
+	go (&flowcontrol.Loop{
+		Handler: flowcontrol.RetryHandler(time.Hour*24, func(ctx context.Context) bool {
 			log.Printf("resyncing discord users...")
 			err := bot.ListUsers(ctx, func(id int64) {
 				discordUsers.Add(id)
 			})
 			if err != nil {
 				log.Printf("error while listing discord users for resync: %s", err)
-				return
+				return false
 			}
-		},
+			return true
+		}),
 	}).Run(ctx)
 
 	// Workers pull messages off of the queue and process them

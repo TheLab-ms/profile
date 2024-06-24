@@ -17,6 +17,7 @@ import (
 	"github.com/TheLab-ms/profile"
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
@@ -25,7 +26,7 @@ import (
 
 type Server struct {
 	Env         *conf.Env
-	Keycloak    *keycloak.Keycloak
+	Keycloak    *keycloak.Keycloak[*datamodel.User]
 	PriceCache  *payment.PriceCache
 	EventsCache *events.EventCache
 }

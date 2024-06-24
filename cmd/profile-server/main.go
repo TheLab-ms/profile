@@ -11,6 +11,7 @@ import (
 
 	"github.com/TheLab-ms/profile/internal/chatbot"
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
@@ -34,20 +35,20 @@ func main() {
 		}
 	}
 
-	// Reporting allows meaningful actions taken by users to be stored somewhere for reference
-	var err error
-	reporting.DefaultSink, err = reporting.NewSink(env)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Price cache polls Stripe to load the configured prices, and is refreshed when they change (via webhook)
 	ctx := context.TODO()
 	priceCache := payment.NewPriceCache()
 	go priceCache.Run(ctx)
 
-	kc := keycloak.New(env)
-	go kc.RunReportingLoop()
+	kc := keycloak.New[*datamodel.User](env)
+
+	// Reporting allows meaningful actions taken by users to be stored somewhere for reference
+	var err error
+	reporting.DefaultSink, err = reporting.NewSink(env, kc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go reporting.DefaultSink.RunMemberMetricsLoop(ctx)
 
 	bot, err := chatbot.NewBot(env)
 	if err != nil {

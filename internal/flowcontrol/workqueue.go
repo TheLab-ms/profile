@@ -3,8 +3,6 @@ package flowcontrol
 import (
 	"container/heap"
 	"context"
-	"math"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -101,17 +99,10 @@ func (q *Queue[T]) Retry(key T) {
 	defer q.mu.Unlock()
 	if item, exists := q.items[key]; exists {
 		item.attempts++
-		item.nextRetry = time.Now().Add(q.exponentialBackoff(item.attempts))
+		item.nextRetry = time.Now().Add(exponentialBackoff(item.attempts))
 		heap.Push(q.heap, item)
 		q.cond.Signal()
 	}
-}
-
-func (q *Queue[T]) exponentialBackoff(attempts int) time.Duration {
-	backoff := float64(time.Millisecond * 50)
-	jitter := backoff * 0.1
-	factor := math.Pow(2, float64(attempts))
-	return time.Duration(backoff*factor + jitter*factor*0.5*rand.Float64())
 }
 
 func (q *Queue[T]) removeFromHeap(item *QueueItem[T]) {

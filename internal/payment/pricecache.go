@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TheLab-ms/profile/internal/timeutil"
+	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/coupon"
 	"github.com/stripe/stripe-go/v78/price"
@@ -16,15 +16,14 @@ import (
 
 // PriceCache is used to store Stripe product prices in-memory to avoid fetching them when rendering pages.
 type PriceCache struct {
-	timeutil.Loop
+	flowcontrol.Loop
 	mut   sync.Mutex
 	state *cacheState
 }
 
 func NewPriceCache() *PriceCache {
 	p := &PriceCache{}
-	p.Loop.Handler = p.fillCache
-	p.Loop.Interval = time.Hour
+	p.Loop.Handler = flowcontrol.RetryHandler(time.Hour, p.fillCache)
 	return p
 }
 
@@ -46,16 +45,18 @@ func (p *PriceCache) GetDiscountTypes() []string {
 	return p.state.DiscountTypes
 }
 
-func (p *PriceCache) fillCache(ctx context.Context) {
+func (p *PriceCache) fillCache(ctx context.Context) bool {
 	state := p.listPrices()
 	if state == nil {
 		log.Fatalf("failed to populate Stripe cache - will retry")
+		return false
 	}
 
 	p.mut.Lock()
 	p.state = state
 	log.Printf("updated cache of %d prices", len(state.Prices))
 	p.mut.Unlock()
+	return true
 }
 
 func (p *PriceCache) listPrices() *cacheState {

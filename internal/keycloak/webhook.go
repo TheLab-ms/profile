@@ -32,8 +32,8 @@ func NewWebhookHandler(fn func(userID string) bool) http.Handler {
 	})
 }
 
-func (k *Keycloak) EnsureWebhook(ctx context.Context, callbackURL string) error {
-	hooks, err := k.ListWebhooks(ctx)
+func (k *Keycloak[T]) EnsureWebhook(ctx context.Context, callbackURL string) error {
+	hooks, err := k.listWebhooks(ctx)
 	if err != nil {
 		return fmt.Errorf("listing: %w", err)
 	}
@@ -44,14 +44,14 @@ func (k *Keycloak) EnsureWebhook(ctx context.Context, callbackURL string) error 
 		}
 	}
 
-	return k.CreateWebhook(ctx, &Webhook{
+	return k.createWebhook(ctx, &Webhook{
 		Enabled:    true,
 		URL:        callbackURL,
 		EventTypes: []string{"admin.*"},
 	})
 }
 
-func (k *Keycloak) ListWebhooks(ctx context.Context) ([]*Webhook, error) {
+func (k *Keycloak[T]) listWebhooks(ctx context.Context) ([]*Webhook, error) {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting token: %w", err)
@@ -68,7 +68,7 @@ func (k *Keycloak) ListWebhooks(ctx context.Context) ([]*Webhook, error) {
 	return webhooks, nil
 }
 
-func (k *Keycloak) CreateWebhook(ctx context.Context, webhook *Webhook) error {
+func (k *Keycloak[T]) createWebhook(ctx context.Context, webhook *Webhook) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return fmt.Errorf("getting token: %w", err)

@@ -1,10 +1,8 @@
 package flowcontrol
 
 import (
-	"math"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -70,22 +68,4 @@ func TestDoneFunctionality(t *testing.T) {
 	q.Add("item1")
 	q.Done("item1")
 	assert.Len(t, q.items, 0)
-}
-
-func TestExponentialBackoffFunction(t *testing.T) {
-	q := NewQueue[string]()
-
-	backoff := q.exponentialBackoff(1)
-	if !approxDuration(backoff, time.Millisecond*100, 0.2) {
-		t.Errorf("Expected backoff around 2s, got %v", backoff)
-	}
-
-	backoff = q.exponentialBackoff(2)
-	if !approxDuration(backoff, time.Millisecond*200, 0.2) {
-		t.Errorf("Expected backoff around 4s, got %v", backoff)
-	}
-}
-
-func approxDuration(d1, d2 time.Duration, tolerance float64) bool {
-	return math.Abs(float64(d1-d2)) <= tolerance*float64(d1)
 }

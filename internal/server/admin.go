@@ -2,11 +2,13 @@ package server
 
 import (
 	"encoding/csv"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
@@ -67,14 +69,14 @@ func (s *Server) newAssignFobHandler() http.HandlerFunc {
 			return
 		}
 
-		exists, err := s.Keycloak.BadgeIDInUse(r.Context(), fobID)
-		if err != nil {
-			renderSystemError(w, "error while checking for fob assignment: %s", err)
-			return
-		}
-		if exists {
+		_, err = s.Keycloak.GetUserByAttribute(r.Context(), "keyfobID", strconv.Itoa(fobID))
+		if err == nil {
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(`That fob has already been assigned to another member!`))
+			return
+		}
+		if !errors.Is(err, keycloak.ErrNotFound) {
+			renderSystemError(w, "error while checking for fob assignment: %s", err)
 			return
 		}
 

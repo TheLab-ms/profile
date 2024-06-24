@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"golang.org/x/time/rate"
@@ -28,7 +29,7 @@ func run() error {
 	env := &conf.Env{}
 	env.MustLoad()
 
-	kc := keycloak.New(env)
+	kc := keycloak.New[*datamodel.User](env)
 	ctx := context.Background()
 
 	users, err := kc.ListUsers(ctx)
@@ -36,7 +37,7 @@ func run() error {
 		return fmt.Errorf("listing users: %w", err)
 	}
 
-	reporting.DefaultSink, err = reporting.NewSink(env)
+	reporting.DefaultSink, err = reporting.NewSink(env, kc)
 	if err != nil {
 		return err
 	}

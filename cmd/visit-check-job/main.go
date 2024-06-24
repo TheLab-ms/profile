@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"golang.org/x/time/rate"
@@ -25,14 +26,14 @@ func run() error {
 	env := &conf.Env{}
 	env.MustLoad()
 
+	kc := keycloak.New[*datamodel.User](env)
+	ctx := context.Background()
+
 	var err error
-	reporting.DefaultSink, err = reporting.NewSink(env)
+	reporting.DefaultSink, err = reporting.NewSink(env, kc)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	kc := keycloak.New(env)
-	ctx := context.Background()
 
 	users, err := kc.ListUsers(ctx)
 	if err != nil {
@@ -58,7 +59,7 @@ func run() error {
 	return nil
 }
 
-func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
+func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 	for _, extended := range users {
 		if !extended.ActiveMember {
@@ -94,7 +95,7 @@ var saneStartTime = time.Now().Add(-(time.Hour * 24 * 365 * 10))
 
 var absentThres = time.Hour * 24 * 100
 
-func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak, users []*keycloak.ExtendedUser) error {
+func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 	for _, extended := range users {
 		user := extended.User

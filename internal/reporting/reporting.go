@@ -10,6 +10,9 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
+	"github.com/TheLab-ms/profile/internal/flowcontrol"
+	"github.com/TheLab-ms/profile/internal/keycloak"
 )
 
 var DefaultSink *ReportingSink
@@ -38,12 +41,13 @@ ALTER TABLE profile_metrics ADD COLUMN IF NOT EXISTS unverified_accounts int;
 
 // ReportingSink buffers and periodically flushes meaningful user actions to postgres.
 type ReportingSink struct {
-	db     *pgxpool.Pool
-	buffer chan *event
+	db       *pgxpool.Pool
+	buffer   chan *event
+	keycloak *keycloak.Keycloak[*datamodel.User]
 }
 
-func NewSink(env *conf.Env) (*ReportingSink, error) {
-	s := &ReportingSink{}
+func NewSink(env *conf.Env, kc *keycloak.Keycloak[*datamodel.User]) (*ReportingSink, error) {
+	s := &ReportingSink{keycloak: kc}
 	if env.EventPsqlAddr == "" {
 		return s, nil
 	}
@@ -94,16 +98,6 @@ func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
 	}
 }
 
-func (s *ReportingSink) LastMetricTime() (time.Time, error) {
-	t := time.Time{}
-	return t, s.db.QueryRow(context.Background(), "SELECT COALESCE(MAX(time), '0001-01-01'::timestamp) AS time FROM profile_metrics").Scan(&t)
-}
-
-func (s *ReportingSink) WriteMetrics(counters *Counters) error {
-	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members, unverified_accounts) VALUES ($1, $2, $3, $4)", time.Now(), counters.ActiveMembers, counters.InactiveMembers, counters.UnverifiedAccounts)
-	return err
-}
-
 func (s *ReportingSink) GetLatestSwipe(ctx context.Context, name string, last time.Time) (time.Time, bool, error) {
 	swipe := time.Time{}
 	err := s.db.QueryRow(ctx, "SELECT time FROM swipes WHERE name = $1 AND time > $2 ORDER BY time DESC LIMIT 1", name, last).Scan(&swipe)
@@ -142,7 +136,72 @@ func (s *ReportingSink) LastFobAssignment(ctx context.Context, granterFobID int)
 
 func (s *ReportingSink) Enabled() bool { return s != nil && s.db != nil }
 
-type Counters struct {
+func (s *ReportingSink) RunMemberMetricsLoop(ctx context.Context) {
+	if !s.Enabled() {
+		return // no db to report to
+	}
+
+	const interval = time.Hour * 24
+	const retryInterval = time.Second * 30
+
+	loop := &flowcontrol.Loop{
+		Handler: func(ctx context.Context) time.Duration {
+			lastTime, err := s.lastMetricTime()
+			if err != nil {
+				log.Printf("error while getting the last metrics reporting time: %s", err)
+				return retryInterval
+			}
+
+			delta := interval - time.Since(lastTime)
+			if delta > 0 {
+				log.Printf("it isn't time to report metrics yet - setting time for %d seconds in the future", int(delta.Seconds()))
+				return delta
+			}
+
+			s.reportMetrics()
+			return retryInterval // don't wait the entire interval in case reportMetrics failed
+		},
+	}
+	loop.Run(ctx)
+}
+
+func (s *ReportingSink) reportMetrics() {
+	users, err := s.keycloak.ListUsers(context.Background())
+	if err != nil {
+		log.Printf("error listing users to derive metrics: %s", err)
+		return
+	}
+
+	counters := counters{}
+	for _, extended := range users {
+		if !extended.User.EmailVerified {
+			counters.UnverifiedAccounts++
+		}
+		if extended.ActiveMember {
+			counters.ActiveMembers++
+		} else {
+			counters.InactiveMembers++
+		}
+	}
+
+	err = s.writeMetrics(&counters)
+	if err != nil {
+		log.Printf("unable to write metrics to the reporting store: %s", err)
+		return
+	}
+}
+
+func (s *ReportingSink) writeMetrics(counters *counters) error {
+	_, err := s.db.Exec(context.Background(), "INSERT INTO profile_metrics (time, active_members, inactive_members, unverified_accounts) VALUES ($1, $2, $3, $4)", time.Now(), counters.ActiveMembers, counters.InactiveMembers, counters.UnverifiedAccounts)
+	return err
+}
+
+func (s *ReportingSink) lastMetricTime() (time.Time, error) {
+	t := time.Time{}
+	return t, s.db.QueryRow(context.Background(), "SELECT COALESCE(MAX(time), '0001-01-01'::timestamp) AS time FROM profile_metrics").Scan(&t)
+}
+
+type counters struct {
 	ActiveMembers      int64
 	InactiveMembers    int64
 	UnverifiedAccounts int64

@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
-	"github.com/TheLab-ms/profile/internal/timeutil"
+	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/teambition/rrule-go"
 )
 
 // EventCache polls Discord events, caches them in-memory, and materializes recurring events.
 type EventCache struct {
-	timeutil.Loop
+	flowcontrol.Loop
 	mut   sync.Mutex
 	state []*event
 
@@ -29,8 +29,7 @@ type EventCache struct {
 
 func NewCache(env *conf.Env) *EventCache {
 	ec := &EventCache{env: env, baseURL: "https://discord.com"}
-	ec.Loop.Handler = ec.fillCache
-	ec.Loop.Interval = env.DiscordInterval
+	ec.Loop.Handler = flowcontrol.RetryHandler(env.DiscordInterval, ec.fillCache)
 	return ec
 }
 
@@ -115,10 +114,10 @@ func (e *EventCache) GetEvents(until time.Time) ([]*Event, error) {
 	return expanded, nil
 }
 
-func (e *EventCache) fillCache(ctx context.Context) {
+func (e *EventCache) fillCache(ctx context.Context) bool {
 	// Don't run if not configured
 	if e.env.DiscordEventBotToken == "" || e.env.DiscordGuildID == "" {
-		return
+		return true
 	}
 
 	list := e.listEvents(ctx)
@@ -127,15 +126,16 @@ func (e *EventCache) fillCache(ctx context.Context) {
 	if list == nil && e.state == nil {
 		log.Fatalf("failed to warm Discord events cache, and no previous cache was set - exiting")
 		e.mut.Unlock()
-		return
+		return false
 	}
 	if list == nil {
 		e.mut.Unlock()
-		return
+		return false
 	}
 	e.state = list
 	log.Printf("updated cache of %d events", len(list))
 	e.mut.Unlock()
+	return true
 }
 
 func (e *EventCache) listEvents(ctx context.Context) []*event {
