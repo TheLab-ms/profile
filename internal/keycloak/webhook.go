@@ -58,7 +58,7 @@ func (k *Keycloak[T]) listWebhooks(ctx context.Context) ([]*Webhook, error) {
 	}
 
 	webhooks := []*Webhook{}
-	_, err = k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
+	_, err = k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
 		SetResult(&webhooks).
 		Get(fmt.Sprintf("%s/realms/%s/webhooks", k.env.KeycloakURL, k.env.KeycloakRealm))
 	if err != nil {
@@ -74,7 +74,7 @@ func (k *Keycloak[T]) createWebhook(ctx context.Context, webhook *Webhook) error
 		return fmt.Errorf("getting token: %w", err)
 	}
 
-	_, err = k.Client.GetRequestWithBearerAuth(ctx, token.AccessToken).
+	_, err = k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
 		SetBody(webhook).
 		Post(fmt.Sprintf("%s/realms/%s/webhooks", k.env.KeycloakURL, k.env.KeycloakRealm))
 	if err != nil {

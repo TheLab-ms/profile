@@ -34,6 +34,7 @@ func run() error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	kc.Sink = reporting.DefaultSink
 
 	users, err := kc.ListUsers(ctx)
 	if err != nil {

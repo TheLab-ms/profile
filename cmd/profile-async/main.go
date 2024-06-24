@@ -74,6 +74,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	kc.Sink = reporting.DefaultSink
 
 	bot, err := chatbot.NewBot(env)
 	if err != nil {

@@ -41,6 +41,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	kc.Sink = reporting.DefaultSink
 
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*500), 1)
 	for _, extended := range users {
@@ -67,7 +68,9 @@ func run() error {
 			err = kc.Deactivate(ctx, user)
 			if err != nil {
 				log.Printf("error while deactivating user: %s", err)
+				continue
 			}
+			reporting.DefaultSink.Eventf(user.Email, "PayPalSubscriptionCanceled", "We observed the member's PayPal status in an inactive state")
 			continue
 		}
 

@@ -46,7 +46,7 @@ func (s *Server) newDocusealRedirectHandler() http.HandlerFunc {
 		}
 
 		log.Printf("initiated docuseal submission %q for user %s", subs[0].Slug, user.Email)
-		reporting.DefaultSink.Publish(user.Email, "DocusealSubmissionCreated", "created docuseal submission: %s", subs[0].Slug)
+		reporting.DefaultSink.Eventf(user.Email, "DocusealSubmissionCreated", "created docuseal submission: %s", subs[0].Slug)
 		http.Redirect(w, r, s.Env.DocusealURL+"/s/"+subs[0].Slug, http.StatusTemporaryRedirect)
 	}
 }
@@ -80,6 +80,6 @@ func (s *Server) newDocusealWebhookHandler() http.HandlerFunc {
 			return
 		}
 
-		reporting.DefaultSink.Publish(body.Data.Email, "SignedWaiver", "user signed waiver")
+		reporting.DefaultSink.Eventf(body.Data.Email, "SignedWaiver", "user signed waiver")
 	}
 }

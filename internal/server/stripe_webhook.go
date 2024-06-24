@@ -95,9 +95,9 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 			user.StripeCancelationTime = time.Unix(sub.CancelAt, 0)
 
 			if customer.ID != user.StripeCustomerID || sub.ID != user.StripeSubscriptionID {
-				reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
+				reporting.DefaultSink.Eventf(user.Email, "StripeSubscriptionChanged", "A Stripe webhook caused the user's Stripe customer and/or subscription to change")
 			} else if !user.StripeCancelationTime.After(time.Unix(0, 0)) && sub.CancelAt > 0 {
-				reporting.DefaultSink.Publish(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
+				reporting.DefaultSink.Eventf(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
 			}
 		} else {
 			// Revoke building access when payment is canceled
@@ -180,6 +180,6 @@ func cancelPaypal(ctx context.Context, env *conf.Env, user *datamodel.User) erro
 	}
 
 	log.Printf("canceled paypal subscription: %s", user.PaypalMetadata.TransactionID)
-	reporting.DefaultSink.Publish(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
+	reporting.DefaultSink.Eventf(user.Email, "CanceledPaypal", "Successfully migrated user off of paypal")
 	return nil
 }

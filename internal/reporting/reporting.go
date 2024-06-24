@@ -83,7 +83,7 @@ func NewSink(env *conf.Env, kc *keycloak.Keycloak[*datamodel.User]) (*ReportingS
 	return s, nil
 }
 
-func (s *ReportingSink) Publish(email, reason, templ string, args ...any) {
+func (s *ReportingSink) Eventf(email, reason, templ string, args ...any) {
 	if s == nil || s.buffer == nil {
 		return
 	}

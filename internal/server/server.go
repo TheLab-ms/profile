@@ -97,7 +97,7 @@ func (s *Server) newRegistrationFormHandler() http.HandlerFunc {
 			return
 		}
 
-		reporting.DefaultSink.Publish(email, "Signup", "user created an account")
+		reporting.DefaultSink.Eventf(email, "Signup", "user created an account")
 		profile.Templates.ExecuteTemplate(w, "signup.html", viewData)
 	}
 }
@@ -134,7 +134,7 @@ func (s *Server) newContactInfoFormHandler() http.HandlerFunc {
 			return
 		}
 
-		reporting.DefaultSink.Publish(user.Email, "UpdatedContactInfo", "user updated their contact information")
+		reporting.DefaultSink.Eventf(user.Email, "UpdatedContactInfo", "user updated their contact information")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
@@ -180,7 +180,7 @@ func (s *Server) newDiscordLinkHandler() http.HandlerFunc {
 			renderSystemError(w, "error while updating user: %s", err)
 			return
 		}
-		reporting.DefaultSink.Publish(user.Email, "DiscordLinked", "member linked discord account %s", discordUserID)
+		reporting.DefaultSink.Eventf(user.Email, "DiscordLinked", "member linked discord account %s", discordUserID)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

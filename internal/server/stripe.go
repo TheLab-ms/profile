@@ -44,7 +44,7 @@ func (s *Server) newStripeCheckoutHandler() http.HandlerFunc {
 			return
 		}
 
-		reporting.DefaultSink.Publish(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
+		reporting.DefaultSink.Eventf(user.Email, "StartedStripeCheckout", "started Stripe checkout session: %s", s.ID)
 		http.Redirect(w, r, s.URL, http.StatusSeeOther)
 	}
 }

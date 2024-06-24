@@ -101,7 +101,7 @@ func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 			return fmt.Errorf("adding role to guild member %q: %w", member.DisplayName(), err)
 		}
 		log.Printf("added member role for discord user %s i.e. member %s", member.DisplayName(), user.Email)
-		reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "added member role to discord user")
+		reporting.DefaultSink.Eventf(user.Email, "MembershipRoleDiverged", "added member role to discord user")
 		return nil
 	}
 
@@ -110,7 +110,7 @@ func (b *Bot) SyncUser(ctx context.Context, user *UserStatus) error {
 		return fmt.Errorf("removing role from guild member %q: %w", member.DisplayName(), err)
 	}
 	log.Printf("removed member role from discord user %s i.e. member %s", member.DisplayName(), user.Email)
-	reporting.DefaultSink.Publish(user.Email, "MembershipRoleDiverged", "removed member role from discord user")
+	reporting.DefaultSink.Eventf(user.Email, "MembershipRoleDiverged", "removed member role from discord user")
 	return nil
 }
 

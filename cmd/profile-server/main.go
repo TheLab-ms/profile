@@ -48,6 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	kc.Sink = reporting.DefaultSink
 	go reporting.DefaultSink.RunMemberMetricsLoop(ctx)
 
 	bot, err := chatbot.NewBot(env)

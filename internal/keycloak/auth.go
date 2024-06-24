@@ -28,7 +28,7 @@ func (k *Keycloak[T]) GetToken(ctx context.Context) (*gocloak.JWT, error) {
 		return nil, err
 	}
 
-	token, err := k.Client.LoginClient(ctx, string(clientID), string(clientSecret), k.env.KeycloakRealm)
+	token, err := k.client.LoginClient(ctx, string(clientID), string(clientSecret), k.env.KeycloakRealm)
 	if err != nil {
 		return nil, err
 	}
