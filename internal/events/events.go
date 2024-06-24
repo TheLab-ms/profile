@@ -34,8 +34,10 @@ func NewCache(env *conf.Env) *EventCache {
 }
 
 func (e *EventCache) GetEvents(until time.Time) ([]*Event, error) {
-	now := time.Now()
+	return e.getEvents(time.Now(), until)
+}
 
+func (e *EventCache) getEvents(now, until time.Time) ([]*Event, error) {
 	e.mut.Lock()
 	events := e.state
 	e.mut.Unlock()

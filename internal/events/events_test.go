@@ -16,11 +16,9 @@ import (
 )
 
 func TestHappyPath(t *testing.T) {
-	t.Skip("TODO FIX ME")
-
 	env := &conf.Env{
-		DiscordGuildID:  "test-guild",
-		DiscordBotToken: "test-bot-token",
+		DiscordGuildID:       "test-guild",
+		DiscordEventBotToken: "test-bot-token",
 	}
 	c := NewCache(env)
 
@@ -39,8 +37,9 @@ func TestHappyPath(t *testing.T) {
 	c.fillCache(context.Background())
 
 	// Get 30 days of events from when the fixture was captured
-	until := time.Unix(1709006369, 0).Add(time.Hour * 24 * 30)
-	events, err := c.GetEvents(until)
+	from := time.Unix(1709006369, 0)
+	until := from.Add(time.Hour * 24 * 30)
+	events, err := c.getEvents(from, until)
 	require.NoError(t, err)
 
 	by, err := json.Marshal(&events)
