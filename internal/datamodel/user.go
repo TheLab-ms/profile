@@ -24,6 +24,7 @@ type User struct {
 	SignupTime             time.Time `keycloak:"attr.signupEpochTimeUTC"`
 	LastSwipeTime          time.Time `keycloak:"attr.lastSwipeTime"`
 	DiscordUserID          int64     `keycloak:"attr.discordUserID"`
+	SignupEmailSentTime    time.Time `keycloak:"attr.signupEmailSentTime"`
 
 	StripeCustomerID      string    `keycloak:"attr.stripeID"`
 	StripeSubscriptionID  string    `keycloak:"attr.stripeSubscriptionID"`

@@ -15,10 +15,13 @@ import (
 	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/reporting"
+	"golang.org/x/time/rate"
 )
 
-func syncKeycloak(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], userID string) error {
-	_, err := kc.GetUser(ctx, userID)
+var signupEmailLimiter = rate.NewLimiter(rate.Every(time.Second*10), 1)
+
+func handleUserSignupEmail(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], userID string) error {
+	user, err := kc.GetUser(ctx, userID)
 	if errors.Is(err, keycloak.ErrNotFound) {
 		return nil // ignore any users that have been deleted since being enqueued
 	}
@@ -26,10 +29,27 @@ func syncKeycloak(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], u
 		return fmt.Errorf("getting user: %w", err)
 	}
 
+	// Send emails at least once while avoiding duplicates when possible
+	if user.SignupEmailSentTime.After(time.Unix(0, 0)) {
+		return nil
+	}
+
+	// Don't send email if we somehow didn't become aware of the user until >24hr after signup time.
+	if time.Since(user.SignupTime) > time.Hour*24 {
+		return nil
+	}
+
+	signupEmailLimiter.Wait(ctx)
+	err = kc.SendSignupEmail(ctx, user.UUID)
+	if err != nil {
+		return err
+	}
+	reporting.DefaultSink.Eventf(user.Email, "SignupEmailSent", "sent initial password reset email to new user")
+
 	return nil
 }
 
-func syncDiscord(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], bot *chatbot.Bot, userID int64) error {
+func handleDiscordSync(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], bot *chatbot.Bot, userID int64) error {
 	user, err := kc.GetUserByAttribute(ctx, "discordUserID", strconv.FormatInt(userID, 10))
 	if errors.Is(keycloak.ErrNotFound, err) {
 		// ignore 404s since we may still need to clean up the role
@@ -43,10 +63,16 @@ func syncDiscord(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], bo
 	if user != nil {
 		status.Email = user.Email
 		extended, err := kc.ExtendUser(ctx, user, user.UUID)
+		if errors.Is(keycloak.ErrNotFound, err) {
+			// ignore 404s since we may still need to clean up the role
+			err = nil
+		}
 		if err != nil {
 			return fmt.Errorf("extending user: %w", err)
 		}
-		status.ActiveMember = extended.ActiveMember
+		if extended != nil {
+			status.ActiveMember = extended.ActiveMember
+		}
 	}
 
 	err = bot.SyncUser(ctx, status)
@@ -62,10 +88,10 @@ func main() {
 	env := &conf.Env{}
 	env.MustLoad()
 
-	discordUsers := flowcontrol.NewQueue[int64]()
-	go discordUsers.Run(ctx)
-	keycloakUsers := flowcontrol.NewQueue[string]()
-	go keycloakUsers.Run(ctx)
+	discordSyncUsers := flowcontrol.NewQueue[int64]()
+	go discordSyncUsers.Run(ctx)
+	signupEmailUsers := flowcontrol.NewQueue[string]()
+	go signupEmailUsers.Run(ctx)
 
 	kc := keycloak.New[*datamodel.User](env)
 
@@ -101,9 +127,9 @@ func main() {
 			for _, extended := range users {
 				user := extended.User
 				if user.DiscordUserID > 0 {
-					discordUsers.Add(user.DiscordUserID)
+					discordSyncUsers.Add(user.DiscordUserID)
 				}
-				keycloakUsers.Add(user.UUID)
+				signupEmailUsers.Add(user.UUID)
 			}
 			return true
 		}),
@@ -114,7 +140,7 @@ func main() {
 		Handler: flowcontrol.RetryHandler(time.Hour*24, func(ctx context.Context) bool {
 			log.Printf("resyncing discord users...")
 			err := bot.ListUsers(ctx, func(id int64) {
-				discordUsers.Add(id)
+				discordSyncUsers.Add(id)
 			})
 			if err != nil {
 				log.Printf("error while listing discord users for resync: %s", err)
@@ -125,11 +151,11 @@ func main() {
 	}).Run(ctx)
 
 	// Workers pull messages off of the queue and process them
-	go flowcontrol.RunWorker(ctx, discordUsers, func(id int64) error {
-		return syncDiscord(ctx, kc, bot, id)
+	go flowcontrol.RunWorker(ctx, discordSyncUsers, func(id int64) error {
+		return handleDiscordSync(ctx, kc, bot, id)
 	})
-	go flowcontrol.RunWorker(ctx, keycloakUsers, func(id string) error {
-		return syncKeycloak(ctx, kc, id)
+	go flowcontrol.RunWorker(ctx, signupEmailUsers, func(id string) error {
+		return handleUserSignupEmail(ctx, kc, id)
 	})
 
 	// Webhook server
@@ -137,14 +163,14 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
 	mux.Handle("/webhooks/keycloak", keycloak.NewWebhookHandler(func(userID string) bool {
 		log.Printf("got keycloak webhook for user %s", userID)
-		keycloakUsers.Add(userID)
+		signupEmailUsers.Add(userID)
 
 		user, err := kc.GetUser(ctx, userID)
 		if err != nil {
 			log.Printf("error while getting keycloak user: %s", err)
 			return false
 		}
-		discordUsers.Add(user.DiscordUserID)
+		discordSyncUsers.Add(user.DiscordUserID)
 		return true
 	}))
 

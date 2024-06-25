@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -64,7 +65,7 @@ func (k *Keycloak[T]) RegisterUser(ctx context.Context, email string) error {
 		return ErrLimitExceeded
 	}
 
-	userID, err := k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
+	_, err = k.client.CreateUser(ctx, token.AccessToken, k.env.KeycloakRealm, gocloak.User{
 		Enabled:  gocloak.BoolP(true),
 		Email:    &email,
 		Username: &email,
@@ -79,12 +80,20 @@ func (k *Keycloak[T]) RegisterUser(ctx context.Context, email string) error {
 		return fmt.Errorf("creating user: %w", err)
 	}
 
+	return nil
+}
+
+func (k *Keycloak[T]) SendSignupEmail(ctx context.Context, userID string) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
 	clientID, err := k.getClientID()
 	if err != nil {
 		return err
 	}
 
-	// TODO: Do this in the async path to avoid crashing between steps (it won't recover on retry)
 	resp, err := k.client.GetRequestWithBearerAuth(ctx, token.AccessToken).
 		SetQueryParams(map[string]string{"lifespan": "43200", "redirect_uri": k.env.SelfURL + "/profile", "client_id": string(clientID)}).
 		SetBody([]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}).
@@ -95,12 +104,11 @@ func (k *Keycloak[T]) RegisterUser(ctx context.Context, email string) error {
 	if resp.IsError() {
 		return fmt.Errorf("unknown error from keycloak: %s", resp.Body())
 	}
-
 	return nil
 }
 
 func (k *Keycloak[T]) GetUser(ctx context.Context, userID string) (T, error) {
-	var user T
+	user := k.newUser()
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return user, fmt.Errorf("getting token: %w", err)
@@ -119,7 +127,7 @@ func (k *Keycloak[T]) GetUser(ctx context.Context, userID string) (T, error) {
 }
 
 func (k *Keycloak[T]) GetUserByAttribute(ctx context.Context, key, val string) (T, error) {
-	var user T
+	user := k.newUser()
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return user, fmt.Errorf("getting token: %w", err)
@@ -141,7 +149,7 @@ func (k *Keycloak[T]) GetUserByAttribute(ctx context.Context, key, val string) (
 }
 
 func (k *Keycloak[T]) GetUserByEmail(ctx context.Context, email string) (T, error) {
-	var user T
+	user := k.newUser()
 	token, err := k.GetToken(ctx)
 	if err != nil {
 		return user, fmt.Errorf("getting token: %w", err)
@@ -222,6 +230,9 @@ func (k *Keycloak[T]) ExtendUser(ctx context.Context, user T, uuid string) (*Ext
 		Search: gocloak.StringP("thelab-members"),
 	})
 	if err != nil {
+		if e, ok := err.(*gocloak.APIError); ok && e.Code == 404 {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("getting group membership: %w", err)
 	}
 
@@ -285,13 +296,19 @@ func (k *Keycloak[T]) ListUsers(ctx context.Context) ([]*ExtendedUser[T], error)
 		}
 		first += len(users)
 		for _, kcuser := range users {
-			var user T
+			user := k.newUser()
 			mapToUserType(kcuser, user)
 			_, member := activeMembers[gocloak.PString(kcuser.ID)]
 			fullUser := &ExtendedUser[T]{User: user, ActiveMember: member}
 			parsedUsers = append(parsedUsers, fullUser)
 		}
 	}
+}
+
+func (k *Keycloak[T]) newUser() (user T) {
+	structType := reflect.TypeOf(user).Elem()
+	instance := reflect.New(structType).Interface()
+	return instance.(T)
 }
 
 func safeGetAttrs(kcuser *gocloak.User) map[string][]string {
