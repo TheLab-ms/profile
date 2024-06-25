@@ -16,7 +16,7 @@ type User struct {
 	Last                   string    `keycloak:"last"`
 	Email                  string    `keycloak:"email"`
 	EmailVerified          bool      `keycloak:"emailVerified"`
-	FobID                  int       `keycloak:"attr.fobID"`
+	FobID                  int       `keycloak:"attr.keyfobID"`
 	WaiverState            string    `keycloak:"attr.waiverState"`
 	NonBillable            bool      `keycloak:"attr.nonBillable"`
 	DiscountType           string    `keycloak:"attr.discountType"`

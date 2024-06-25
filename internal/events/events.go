@@ -120,6 +120,7 @@ func (e *EventCache) getEvents(now, until time.Time) ([]*datamodel.Event, error)
 func (e *EventCache) fillCache(ctx context.Context) bool {
 	// Don't run if not configured
 	if e.env.DiscordEventBotToken == "" || e.env.DiscordGuildID == "" {
+		log.Printf("not filling events cache because DiscordEventBotToken==nil=%t, DiscordGuildID==nil=%t", e.env.DiscordEventBotToken == "", e.env.DiscordGuildID == "")
 		return true
 	}
 
