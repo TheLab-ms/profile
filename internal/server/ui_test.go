@@ -57,7 +57,7 @@ func TestRenderProfile(t *testing.T) {
 				Email:                 "developers@microsoft.com",
 				DiscountType:          "developersdevelopersdevelopers",
 				StripeSubscriptionID:  "foo",
-				StripeCancelationTime: time.Now().Add(-time.Hour),
+				StripeCancelationTime: time.Now().UTC().Add(-time.Hour),
 			},
 		},
 		{
@@ -73,7 +73,7 @@ func TestRenderProfile(t *testing.T) {
 				DiscountType:  "developersdevelopersdevelopers",
 				PaypalMetadata: datamodel.PaypalMetadata{
 					Price:         6000,
-					TimeRFC3339:   time.Now(),
+					TimeRFC3339:   time.Now().UTC(),
 					TransactionID: "foobarbaz",
 				},
 			},
