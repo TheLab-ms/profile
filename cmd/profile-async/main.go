@@ -46,7 +46,8 @@ func handleUserSignupEmail(ctx context.Context, kc *keycloak.Keycloak[*datamodel
 	}
 	reporting.DefaultSink.Eventf(user.Email, "SignupEmailSent", "sent initial password reset email to new user")
 
-	return nil
+	user.SignupEmailSentTime = time.Now()
+	return kc.WriteUser(ctx, user)
 }
 
 func handleDiscordSync(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], bot *chatbot.Bot, userID int64) error {
