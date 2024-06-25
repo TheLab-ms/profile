@@ -90,23 +90,3 @@ func (s *Server) newAssignFobHandler() http.HandlerFunc {
 		w.Write([]byte(`Done!`))
 	}
 }
-
-func (s *Server) newApplyDiscountHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := s.Keycloak.GetUserByEmail(r.Context(), r.URL.Query().Get("email"))
-		if err != nil {
-			renderSystemError(w, "error while getting user: %s", err)
-			return
-		}
-
-		user.DiscountType = r.URL.Query().Get("type")
-		err = s.Keycloak.WriteUser(r.Context(), user)
-		if err != nil {
-			renderSystemError(w, "error while writing to Keycloak: %s", err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("Done!"))
-	}
-}
