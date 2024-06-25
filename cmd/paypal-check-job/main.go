@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -14,6 +11,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/conf"
 	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/keycloak"
+	"github.com/TheLab-ms/profile/internal/paypal"
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"golang.org/x/time/rate"
 )
@@ -30,6 +28,7 @@ func run() error {
 	env.MustLoad()
 
 	kc := keycloak.New[*datamodel.User](env)
+	ppc := paypal.NewClient(env)
 	ctx := context.Background()
 
 	users, err := kc.ListUsers(ctx)
@@ -51,7 +50,7 @@ func run() error {
 		}
 		limiter.Wait(ctx)
 
-		current, err := getSubscriptionMetadata(ctx, env, user.PaypalMetadata.TransactionID)
+		current, err := ppc.GetSubscription(ctx, user.PaypalMetadata.TransactionID)
 		if err != nil {
 			log.Printf("error while getting paypal subscription for member %s: %s", user.Email, err)
 			continue
@@ -91,51 +90,4 @@ func run() error {
 	log.Printf("done!")
 	time.Sleep(time.Second) // let the events get flushed to the db (this is v dumb)
 	return nil
-}
-
-func getSubscriptionMetadata(ctx context.Context, env *conf.Env, id string) (*paypalSubscription, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.paypal.com/v1/billing/subscriptions/%s", id), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.SetBasicAuth(env.PaypalClientID, env.PaypalClientSecret)
-
-	getResp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer getResp.Body.Close()
-
-	if getResp.StatusCode == 404 {
-		return nil, nil
-	}
-	if getResp.StatusCode > 299 {
-		body, _ := io.ReadAll(getResp.Body)
-		return nil, fmt.Errorf("error response %d from Paypal when getting subscription: %s", getResp.StatusCode, body)
-	}
-
-	current := &paypalSubscription{}
-	err = json.NewDecoder(getResp.Body).Decode(&current)
-	if err != nil {
-		return nil, err
-	}
-	return current, nil
-}
-
-type paypalSubscription struct {
-	Status  string            `json:"status"`
-	Billing paypalBillingInfo `json:"billing_info"`
-}
-
-type paypalBillingInfo struct {
-	LastPayment paypalPayment `json:"last_payment"`
-}
-
-type paypalPayment struct {
-	Amount paypalAmount `json:"amount"`
-	Time   time.Time    `json:"time"`
-}
-
-type paypalAmount struct {
-	Value string `json:"value"`
 }

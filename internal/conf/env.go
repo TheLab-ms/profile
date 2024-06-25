@@ -7,6 +7,8 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// TODO: Use interface + getters
+
 type Env struct {
 	// Keycloak
 	KeycloakURL             string `split_words:"true" required:"true"`

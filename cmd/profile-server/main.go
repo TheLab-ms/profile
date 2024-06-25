@@ -15,6 +15,7 @@ import (
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
+	"github.com/TheLab-ms/profile/internal/paypal"
 	"github.com/TheLab-ms/profile/internal/reporting"
 	"github.com/TheLab-ms/profile/internal/server"
 )
@@ -70,6 +71,7 @@ func main() {
 	svr := &server.Server{
 		Env:         env,
 		Keycloak:    kc,
+		Paypal:      paypal.NewClient(env),
 		PriceCache:  priceCache,
 		EventsCache: eventsCache,
 	}

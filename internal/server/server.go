@@ -21,12 +21,14 @@ import (
 	"github.com/TheLab-ms/profile/internal/events"
 	"github.com/TheLab-ms/profile/internal/keycloak"
 	"github.com/TheLab-ms/profile/internal/payment"
+	"github.com/TheLab-ms/profile/internal/paypal"
 	"github.com/TheLab-ms/profile/internal/reporting"
 )
 
 type Server struct {
 	Env         *conf.Env
 	Keycloak    *keycloak.Keycloak[*datamodel.User]
+	Paypal      *paypal.Client
 	PriceCache  *payment.PriceCache
 	EventsCache *events.EventCache
 }
