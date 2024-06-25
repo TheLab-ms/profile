@@ -22,7 +22,7 @@ var signupEmailLimiter = rate.NewLimiter(rate.Every(time.Second*10), 1)
 
 func handleUserSignupEmail(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], userID string) error {
 	user, err := kc.GetUser(ctx, userID)
-	if errors.Is(err, keycloak.ErrNotFound) {
+	if errors.Is(keycloak.ErrNotFound, err) {
 		return nil // ignore any users that have been deleted since being enqueued
 	}
 	if err != nil {
