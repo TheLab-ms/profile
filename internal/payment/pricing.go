@@ -108,14 +108,14 @@ func calculateBillingCycleAnchor(user *datamodel.User) *int64 {
 	return &ts
 }
 
-func CalculateDiscounts(user *datamodel.User, prices []*Price) []*Price {
+func CalculateDiscounts(user *datamodel.User, prices []*datamodel.PriceDetails) []*datamodel.PriceDetails {
 	if user.DiscountType == "" {
 		return prices
 	}
-	out := make([]*Price, len(prices))
+	out := make([]*datamodel.PriceDetails, len(prices))
 	for i, price := range prices {
 		amountOff := price.CouponAmountsOff[user.DiscountType]
-		out[i] = &Price{
+		out[i] = &datamodel.PriceDetails{
 			ID:               price.ID,
 			ProductID:        price.ProductID,
 			Annual:           price.Annual,

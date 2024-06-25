@@ -1,18 +1,22 @@
 package datamodel
 
-import (
-	"github.com/TheLab-ms/profile/internal/payment"
-)
+type PriceDetails struct {
+	ID, ProductID    string
+	Annual           bool
+	Price            float64
+	CouponIDs        map[string]string
+	CouponAmountsOff map[string]int64
+}
 
 type Prices struct {
 	Yearly  Price `json:"yearly"`
 	Monthly Price `json:"monthly"`
 }
 
-func NewPrices(items []*payment.Price) *Prices {
+func NewPrices(items []*PriceDetails) *Prices {
 	// Pick the first yearly and monthly price that we find in the cache
 	// based on no particular order (since we expect to only have one of each)
-	var yearly, monthly *payment.Price
+	var yearly, monthly *PriceDetails
 	for _, price := range items {
 		price := price // GO WHY ARE YOU THIS WAY
 

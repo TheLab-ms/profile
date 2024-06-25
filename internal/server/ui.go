@@ -29,7 +29,7 @@ func (s *Server) newProfileViewHandler() http.HandlerFunc {
 	}
 }
 
-func renderProfile(w io.Writer, user *datamodel.User, prices []*payment.Price) error {
+func renderProfile(w io.Writer, user *datamodel.User, prices []*datamodel.PriceDetails) error {
 	viewData := map[string]any{
 		"page":            "profile",
 		"user":            user,

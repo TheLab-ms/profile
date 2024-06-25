@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/coupon"
@@ -27,7 +28,7 @@ func NewPriceCache() *PriceCache {
 	return p
 }
 
-func (p *PriceCache) GetPrices() []*Price {
+func (p *PriceCache) GetPrices() []*datamodel.PriceDetails {
 	p.mut.Lock()
 	defer p.mut.Unlock()
 	if p.state == nil {
@@ -104,13 +105,13 @@ func (p *PriceCache) listPrices() *cacheState {
 		Type:    stripe.String("recurring"),
 		Product: &product.ID,
 	})
-	returns := []*Price{}
+	returns := []*datamodel.PriceDetails{}
 	for prices.Next() {
 		price := prices.Price()
 		if price.Metadata == nil || price.Recurring == nil || !price.Active || price.Deleted {
 			continue
 		}
-		p := &Price{
+		p := &datamodel.PriceDetails{
 			ID:               price.ID,
 			CouponIDs:        coupsIDs[price.ID],
 			CouponAmountsOff: coupsAmountOff[price.ID],
@@ -135,15 +136,7 @@ func (p *PriceCache) listPrices() *cacheState {
 	}
 }
 
-type Price struct {
-	ID, ProductID    string
-	Annual           bool
-	Price            float64
-	CouponIDs        map[string]string
-	CouponAmountsOff map[string]int64
-}
-
 type cacheState struct {
-	Prices        []*Price
+	Prices        []*datamodel.PriceDetails
 	DiscountTypes []string
 }

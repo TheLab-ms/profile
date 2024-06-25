@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/datamodel"
-	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,7 +96,7 @@ func TestRenderProfile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			prices := []*payment.Price{{ID: "foo", Price: 1000}}
+			prices := []*datamodel.PriceDetails{{ID: "foo", Price: 1000}}
 			buf := &bytes.Buffer{}
 			err := renderProfile(buf, test.User, prices)
 			require.NoError(t, err)

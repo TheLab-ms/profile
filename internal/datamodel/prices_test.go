@@ -3,12 +3,11 @@ package datamodel
 import (
 	"testing"
 
-	"github.com/TheLab-ms/profile/internal/payment"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewPrices(t *testing.T) {
-	items := []*payment.Price{
+	items := []*PriceDetails{
 		{
 			Price:            123,
 			CouponAmountsOff: map[string]int64{"foo": 1000, "bar": 300},

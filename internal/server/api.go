@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TheLab-ms/profile/internal/server/datamodel"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 )
 
 func (s *Server) newListEventsHandler() http.HandlerFunc {
