@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/TheLab-ms/profile/internal/conf"
+	"github.com/TheLab-ms/profile/internal/datamodel"
 	"github.com/TheLab-ms/profile/internal/flowcontrol"
 	"github.com/teambition/rrule-go"
 )
@@ -33,23 +34,23 @@ func NewCache(env *conf.Env) *EventCache {
 	return ec
 }
 
-func (e *EventCache) GetEvents(until time.Time) ([]*Event, error) {
+func (e *EventCache) GetEvents(until time.Time) ([]*datamodel.Event, error) {
 	return e.getEvents(time.Now(), until)
 }
 
-func (e *EventCache) getEvents(now, until time.Time) ([]*Event, error) {
+func (e *EventCache) getEvents(now, until time.Time) ([]*datamodel.Event, error) {
 	e.mut.Lock()
 	events := e.state
 	e.mut.Unlock()
 
 	// Expand the recurrence of every event
-	var expanded []*Event
+	var expanded []*datamodel.Event
 	for _, event := range events {
 		// Support a magic location string to designate members only events
 		membersOnly := strings.Contains(strings.ToLower(event.Name), "(member event)")
 
 		if event.Recurrence == nil {
-			expanded = append(expanded, &Event{
+			expanded = append(expanded, &datamodel.Event{
 				Name:        event.Name,
 				Description: event.Description,
 				Start:       event.Start.UTC().Unix(),
@@ -102,7 +103,7 @@ func (e *EventCache) getEvents(now, until time.Time) ([]*Event, error) {
 		times := rule.Between(now, end, true)
 		duration := event.End.Sub(event.Start)
 		for _, start := range times {
-			expanded = append(expanded, &Event{
+			expanded = append(expanded, &datamodel.Event{
 				Name:        event.Name,
 				Description: event.Description,
 				Start:       start.UTC().Unix(),
@@ -194,12 +195,4 @@ type recurrence struct {
 	Interval  int        `json:"interval"`
 	ByWeekday []int      `json:"by_weekday"`
 	ByMonth   []int      `json:"by_month"`
-}
-
-type Event struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Start       int64  `json:"start"`
-	End         int64  `json:"end"`
-	MembersOnly bool   `json:"membersOnly"`
 }
