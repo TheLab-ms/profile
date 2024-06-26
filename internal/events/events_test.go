@@ -17,8 +17,8 @@ import (
 
 func TestHappyPath(t *testing.T) {
 	env := &conf.Env{
-		DiscordGuildID:       "test-guild",
-		DiscordEventBotToken: "test-bot-token",
+		DiscordGuildID:  "test-guild",
+		DiscordBotToken: "test-bot-token",
 	}
 	c := NewCache(env)
 

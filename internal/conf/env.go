@@ -23,6 +23,7 @@ type Env struct {
 	// App behavior related
 	MaxUnverifiedAccounts int    `split_words:"true" default:"50"`
 	SelfURL               string `split_words:"true" required:"true"`
+	WebhookURL            string `split_words:"true"`
 
 	// Stripe
 	StripeKey        string `split_words:"true"`
@@ -37,12 +38,11 @@ type Env struct {
 	DocusealToken string `split_words:"true"`
 
 	// Discord
-	DiscordAppID         string        `split_words:"true"`
-	DiscordGuildID       string        `split_words:"true"`
-	DiscordBotToken      string        `split_words:"true"`
-	DiscordEventBotToken string        `split_words:"true"`
-	DiscordInterval      time.Duration `split_words:"true" default:"60s"`
-	DiscordMemberRoleID  string        `split_words:"true"`
+	DiscordAppID        string        `split_words:"true"`
+	DiscordGuildID      string        `split_words:"true"`
+	DiscordBotToken     string        `split_words:"true"`
+	DiscordInterval     time.Duration `split_words:"true" default:"60s"`
+	DiscordMemberRoleID string        `split_words:"true"`
 
 	// Age (secrets encrpytion)
 	AgePublicKey  string `split_words:"true"`

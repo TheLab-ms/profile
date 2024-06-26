@@ -83,6 +83,15 @@ func (k *Keycloak[T]) RegisterUser(ctx context.Context, email string) error {
 	return nil
 }
 
+func (k *Keycloak[T]) DeleteUser(ctx context.Context, uuid string) error {
+	token, err := k.GetToken(ctx)
+	if err != nil {
+		return fmt.Errorf("getting token: %w", err)
+	}
+
+	return k.client.DeleteUser(ctx, token.AccessToken, k.env.KeycloakRealm, uuid)
+}
+
 func (k *Keycloak[T]) SendSignupEmail(ctx context.Context, userID string) error {
 	token, err := k.GetToken(ctx)
 	if err != nil {

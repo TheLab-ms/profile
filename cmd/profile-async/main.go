@@ -110,7 +110,7 @@ func main() {
 
 	// Webhook registration
 	if env.KeycloakRegisterWebhook {
-		err = kc.EnsureWebhook(ctx, fmt.Sprintf("%s/webhooks/keycloak", env.SelfURL))
+		err = kc.EnsureWebhook(ctx, fmt.Sprintf("%s/webhooks/keycloak", env.WebhookURL))
 		if err != nil {
 			log.Fatal(err)
 		}

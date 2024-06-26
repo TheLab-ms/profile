@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -51,8 +52,8 @@ func (s *Server) newSecretIndexHandler() http.HandlerFunc {
 		}
 
 		log.Printf("decrypted value %q for user %q originally encrypted by %q", p.Description, userID, p.EncryptedByUser)
-		w.Header().Add("Content-Type", "text/html")
-		profile.Templates.ExecuteTemplate(w, "secret-decrypted.html", p)
+		w.Header().Add("Content-Type", "text/plain")
+		io.WriteString(w, p.Value)
 	}
 }
 

@@ -119,8 +119,7 @@ func (e *EventCache) getEvents(now, until time.Time) ([]*datamodel.Event, error)
 
 func (e *EventCache) fillCache(ctx context.Context) bool {
 	// Don't run if not configured
-	if e.env.DiscordEventBotToken == "" || e.env.DiscordGuildID == "" {
-		log.Printf("not filling events cache because DiscordEventBotToken==nil=%t, DiscordGuildID==nil=%t", e.env.DiscordEventBotToken == "", e.env.DiscordGuildID == "")
+	if e.env.DiscordBotToken == "" || e.env.DiscordGuildID == "" {
 		return true
 	}
 
@@ -151,7 +150,7 @@ func (e *EventCache) listEvents(ctx context.Context) []*event {
 		log.Printf("error creating request to list discord events: %s", err)
 		return nil
 	}
-	req.Header.Add("Authorization", "Bot "+e.env.DiscordEventBotToken)
+	req.Header.Add("Authorization", "Bot "+e.env.DiscordBotToken)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

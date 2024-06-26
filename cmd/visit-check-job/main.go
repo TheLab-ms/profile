@@ -56,6 +56,11 @@ func run() error {
 		return fmt.Errorf("deactivating absent members: %w", err)
 	}
 
+	err = deleteUnconfirmedAccounts(ctx, kc, users)
+	if err != nil {
+		return fmt.Errorf("deleting unconfirmed accounts: %w", err)
+	}
+
 	log.Printf("done!")
 	return nil
 }
@@ -97,7 +102,7 @@ var saneStartTime = time.Now().Add(-(time.Hour * 24 * 365 * 10))
 var absentThres = time.Hour * 24 * 100
 
 func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
-	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
+	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
 	for _, extended := range users {
 		user := extended.User
 		if !extended.ActiveMember || user.NonBillable {
@@ -117,6 +122,32 @@ func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamod
 
 		limiter.Wait(ctx)
 		log.Printf("[noop] Would have deactivated user %q because their last visit was %2.f days ago", user.Email, sinceLastVisit.Hours()/24)
+	}
+	return nil
+}
+
+func deleteUnconfirmedAccounts(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
+	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
+	for _, extended := range users {
+		user := extended.User
+
+		// We only delete accounts when they:
+		// - Aren't system accounts (i.e. have SignupTime==0)
+		// - Have not signed up in the last 24hr
+		// - Do not (somehow) have a paid membership or keyfob
+		accountQualifies := user.EmailVerified || user.PaymentStatus() != "InactiveOrUnknown" || user.FobID != 0 || user.SignupTime.Equal(time.Unix(0, 0))
+		periodHasExpired := time.Since(user.SignupEmailSentTime) > 24*time.Hour
+		if accountQualifies && periodHasExpired {
+			continue
+		}
+
+		limiter.Wait(ctx)
+		log.Printf("deleting user %s because they signed up %s ago and have not confirmed their email (status=%s, fobID=%d)", user.Email, time.Since(user.SignupTime).Round(time.Hour), user.PaymentStatus(), user.FobID)
+		err := kc.DeleteUser(ctx, user.UUID)
+		if err != nil {
+			log.Printf("error while deleting user %s: %s", user.UUID, err)
+			continue
+		}
 	}
 	return nil
 }
