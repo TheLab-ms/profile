@@ -53,11 +53,9 @@ func run() error {
 		return fmt.Errorf("listing users: %w", err)
 	}
 
-	if reporting.DefaultSink.Enabled() { // skip if we may not have recent swipe data
-		err = deactivateAbsentMembers(ctx, kc, users)
-		if err != nil {
-			return fmt.Errorf("deactivating absent members: %w", err)
-		}
+	err = deactivateAbsentMembers(ctx, kc, users)
+	if err != nil {
+		return fmt.Errorf("deactivating absent members: %w", err)
 	}
 
 	err = deleteUnconfirmedAccounts(ctx, kc, users)
@@ -103,13 +101,13 @@ func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User
 
 var saneStartTime = time.Now().Add(-(time.Hour * 24 * 365 * 10))
 
-var absentThres = time.Hour * 24 * 100
+var absentThres = time.Hour * 24 * 365
 
 func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
 	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
 	for _, extended := range users {
 		user := extended.User
-		if !extended.ActiveMember || user.NonBillable {
+		if !extended.ActiveMember || user.BuildingAccessApprover == "" || user.NonBillable {
 			continue
 		}
 
@@ -125,7 +123,13 @@ func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamod
 		}
 
 		limiter.Wait(ctx)
-		log.Printf("[noop] Would have deactivated user %q because their last visit was %2.f days ago", user.Email, sinceLastVisit.Hours()/24)
+		log.Printf("revoking build access approval for user %s %s (%s) because their last visit was %2.f days ago", user.First, user.Last, user.Email, sinceLastVisit.Hours()/24)
+		user.BuildingAccessApprover = ""
+		if err := kc.WriteUser(ctx, user); err != nil {
+			log.Printf("error while deactivating user %s: %s", extended.User.UUID, err)
+			continue
+		}
+		reporting.DefaultSink.Eventf(extended.User.Email, "RevokedBuildingAccessApproval", "removing building access approval because member hasn't visited in %2.f days", sinceLastVisit.Hours()/24)
 	}
 	return nil
 }
@@ -144,6 +148,7 @@ func deleteUnconfirmedAccounts(ctx context.Context, kc *keycloak.Keycloak[*datam
 			log.Printf("error while deleting user %s: %s", extended.User.UUID, err)
 			continue
 		}
+		reporting.DefaultSink.Eventf(extended.User.Email, "AccountCleanedUp", "account was deleted because its email address was not confirmed in the configured period")
 	}
 	return nil
 }

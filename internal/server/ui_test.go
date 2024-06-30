@@ -57,7 +57,7 @@ func TestRenderProfile(t *testing.T) {
 				Email:                 "developers@microsoft.com",
 				DiscountType:          "developersdevelopersdevelopers",
 				StripeSubscriptionID:  "foo",
-				StripeCancelationTime: time.Now().UTC().Add(-time.Hour),
+				StripeCancelationTime: time.Unix(100000, 0).UTC().Add(-time.Hour),
 			},
 		},
 		{
@@ -85,6 +85,19 @@ func TestRenderProfile(t *testing.T) {
 				First:         "Steve",
 				Last:          "Ballmer",
 				FobID:         666,
+				EmailVerified: true,
+				WaiverState:   "Signed",
+				Email:         "developers@microsoft.com",
+				DiscountType:  "developersdevelopersdevelopers",
+				NonBillable:   true,
+			},
+		},
+		{
+			Name:    "deactivated member",
+			Fixture: "deactivated.html",
+			User: &datamodel.User{
+				First:         "Steve",
+				Last:          "Ballmer",
 				EmailVerified: true,
 				WaiverState:   "Signed",
 				Email:         "developers@microsoft.com",

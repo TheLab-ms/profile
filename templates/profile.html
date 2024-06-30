@@ -8,6 +8,15 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-4">
+        {{- if and (not .user.BuildingAccessApprover) (not .user.FobID) }}
+        <div class="alert alert-danger" role="alert">
+          Our records show that you haven't visited the space in 6 months.
+          <br>
+          For the sake of security we have disabled your key fob.
+          Please speak with leadership to re-enable it.
+        </div>
+        {{- end }}
+
         {{ template "widget-contact.html" .}}
         {{ template "widget-waiver.html" .}}
         {{ template "widget-keyfob.html" .}}
