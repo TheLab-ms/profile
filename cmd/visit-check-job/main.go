@@ -36,24 +36,28 @@ func run() error {
 	}
 	kc.Sink = reporting.DefaultSink
 
+	if reporting.DefaultSink.Enabled() {
+		users, err := kc.ListUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("listing users: %w", err)
+		}
+
+		err = updateTimestamps(ctx, kc, users)
+		if err != nil {
+			return fmt.Errorf("updating timestamps: %w", err)
+		}
+	}
+
 	users, err := kc.ListUsers(ctx)
 	if err != nil {
 		return fmt.Errorf("listing users: %w", err)
 	}
 
-	err = updateTimestamps(ctx, kc, users)
-	if err != nil {
-		return fmt.Errorf("updating timestamps: %w", err)
-	}
-
-	users, err = kc.ListUsers(ctx)
-	if err != nil {
-		return fmt.Errorf("listing users: %w", err)
-	}
-
-	err = deactivateAbsentMembers(ctx, kc, users)
-	if err != nil {
-		return fmt.Errorf("deactivating absent members: %w", err)
+	if reporting.DefaultSink.Enabled() { // skip if we may not have recent swipe data
+		err = deactivateAbsentMembers(ctx, kc, users)
+		if err != nil {
+			return fmt.Errorf("deactivating absent members: %w", err)
+		}
 	}
 
 	err = deleteUnconfirmedAccounts(ctx, kc, users)
@@ -129,25 +133,23 @@ func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamod
 func deleteUnconfirmedAccounts(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
 	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
 	for _, extended := range users {
-		user := extended.User
-
-		// We only delete accounts when they:
-		// - Aren't system accounts (i.e. have SignupTime==0)
-		// - Have not signed up in the last 24hr
-		// - Do not (somehow) have a paid membership or keyfob
-		accountQualifies := user.EmailVerified || user.PaymentStatus() != "InactiveOrUnknown" || user.FobID != 0 || user.SignupTime.Equal(time.Unix(0, 0))
-		periodHasExpired := time.Since(user.SignupEmailSentTime) > 24*time.Hour
-		if accountQualifies && periodHasExpired {
+		if userIsConfirmed(extended) {
 			continue
 		}
 
 		limiter.Wait(ctx)
-		log.Printf("deleting user %s because they signed up %s ago and have not confirmed their email (status=%s, fobID=%d)", user.Email, time.Since(user.SignupTime).Round(time.Hour), user.PaymentStatus(), user.FobID)
-		err := kc.DeleteUser(ctx, user.UUID)
+		log.Printf("deleting user %s because they signed up %s ago and have not confirmed their email (status=%s, fobID=%d)", extended.User.Email, time.Since(extended.User.SignupTime).Round(time.Hour), extended.User.PaymentStatus(), extended.User.FobID)
+		err := kc.DeleteUser(ctx, extended.User.UUID)
 		if err != nil {
-			log.Printf("error while deleting user %s: %s", user.UUID, err)
+			log.Printf("error while deleting user %s: %s", extended.User.UUID, err)
 			continue
 		}
 	}
 	return nil
+}
+
+func userIsConfirmed(user *keycloak.ExtendedUser[*datamodel.User]) bool {
+	active := user.ActiveMember || user.User.EmailVerified || user.User.NonBillable
+	tooNew := time.Since(user.User.SignupTime) < 48*time.Hour
+	return active || tooNew
 }
