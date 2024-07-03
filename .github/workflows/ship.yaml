@@ -43,7 +43,7 @@ jobs:
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
-    name: Build and Push ${{ matrix.name }}
+    name: Build ${{ matrix.name }}
     runs-on: ubuntu-latest
     needs: [test, generate-matrix]
     strategy:
