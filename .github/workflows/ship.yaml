@@ -33,7 +33,7 @@ jobs:
 
       # Spawn a job for each dir in ./cmd
       - name: Generate matrix
-        id: matrix
+        id: generate
         run: |
           dirs=$(find ./cmd -mindepth 1 -maxdepth 1 -type d)
           matrix=$(for dir in $dirs; do
