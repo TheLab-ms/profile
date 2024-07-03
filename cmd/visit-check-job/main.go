@@ -101,7 +101,7 @@ func updateTimestamps(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User
 
 var saneStartTime = time.Now().Add(-(time.Hour * 24 * 365 * 10))
 
-var absentThres = time.Hour * 24 * 365
+var absentThres = time.Hour * 24 * 182
 
 func deactivateAbsentMembers(ctx context.Context, kc *keycloak.Keycloak[*datamodel.User], users []*keycloak.ExtendedUser[*datamodel.User]) error {
 	limiter := rate.NewLimiter(rate.Every(time.Second), 1)
