@@ -73,7 +73,7 @@ func TestRenderProfile(t *testing.T) {
 				DiscountType:  "developersdevelopersdevelopers",
 				PaypalMetadata: datamodel.PaypalMetadata{
 					Price:         6000,
-					TimeRFC3339:   time.Now().UTC(),
+					TimeRFC3339:   time.Unix(100000, 0).UTC().Add(-time.Hour),
 					TransactionID: "foobarbaz",
 				},
 			},
