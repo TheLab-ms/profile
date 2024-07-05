@@ -136,9 +136,15 @@ func (s *Server) newStripeWebhookHandler() http.HandlerFunc {
 				reporting.DefaultSink.Eventf(user.Email, "StripeSubscriptionCanceled", "The user canceled their subscription")
 			}
 		} else {
-			// Revoke building access when payment is canceled
-			// TODO: Does this include the period between cancelation and expiration?
-			user.BuildingAccessApprover = ""
+			// Canceling a subscription means the member should need to follow the normal
+			// onboarding if they rejoin at any point. But just missing a payment shouldn't
+			// cause access to be revoked once payment is provided.
+			if sub.Status == stripe.SubscriptionStatusPastDue {
+				user.BuildingAccessApprover = ""
+			}
+
+			// This is reached only once the paid period has been exceeded.
+			// So saving the subscription ID isn't of any use.
 			user.StripeSubscriptionID = ""
 		}
 
