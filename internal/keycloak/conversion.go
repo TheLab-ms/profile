@@ -30,6 +30,8 @@ func mapToUserType(kcuser *gocloak.User, user any) {
 			fv.SetString(gocloak.PString(kcuser.Email))
 		} else if tag == "emailVerified" {
 			fv.SetBool(gocloak.PBool(kcuser.EmailVerified))
+		} else if tag == "ctime" {
+			fv.SetInt(*kcuser.CreatedTimestamp)
 		}
 		if !strings.HasPrefix(tag, "attr.") {
 			continue

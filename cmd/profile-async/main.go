@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -84,6 +86,91 @@ func handleDiscordSync(ctx context.Context, kc *keycloak.Keycloak[*datamodel.Use
 	return nil
 }
 
+func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[*datamodel.User], userID string) error {
+	user, err := kc.GetUser(ctx, userID)
+	if errors.Is(keycloak.ErrNotFound, err) {
+		return nil // we don't need to clean up
+	}
+	if err != nil {
+		return fmt.Errorf("getting user: %w", err)
+	}
+
+	ext, err := kc.ExtendUser(ctx, user, userID)
+	if err != nil {
+		return fmt.Errorf("extending user: %w", err)
+	}
+
+	out := map[string]any{
+		"email":     user.Email,
+		"created":   user.CreationTime,
+		"name":      fmt.Sprintf("%s %s", user.First, user.Last),
+		"confirmed": true,
+		// "leadership":                false, // remember to just set this manually
+		"non_billable":              user.NonBillable,
+		"price_tier":                user.DiscountType,
+		"price_amount":              40, // overridden below
+		"building_access_approver":  user.BuildingAccessApprover,
+		"fob_id":                    user.FobID,
+		"stripe_customer_id":        user.StripeCustomerID,
+		"stripe_subscription_id":    user.StripeSubscriptionID,
+		"stripe_subscription_state": "inactive",
+		"stripe_cancelation_time":   nil,
+		"paypal_subscription_id":    user.PaypalMetadata.TransactionID,
+		"paypal_price":              user.PaypalMetadata.Price,
+		"paypal_last_payment":       nil,
+		"waiver_signed":             nil,
+	}
+	if out["fob_id"] == 0 {
+		out["fob_id"] = nil
+	}
+	if user.PaypalMetadata.TimeRFC3339.After(time.Unix(0, 0)) {
+		out["paypal_last_payment"] = user.PaypalMetadata.TimeRFC3339.Unix()
+	}
+	if user.StripeCancelationTime.After(time.Unix(0, 0)) {
+		out["stripe_cancelation_time"] = user.StripeCancelationTime.Unix()
+	}
+	if ext.ActiveMember {
+		out["stripe_subscription_state"] = "active"
+	}
+	if user.DiscountType != "" {
+		out["price_amount"] = 20
+	}
+	if user.DiscountType == "family" {
+		out["price_amount"] = 15
+	}
+	if user.WaiverState != "" {
+		out["waiver_signed"] = true
+	}
+
+	if env.ConwayURL == "" || env.ConwayToken == "" {
+		log.Printf("Conway URL or Token not set")
+		return nil
+	}
+
+	js, err := json.Marshal(&out)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PATCH", fmt.Sprintf("%s/api/members/%s", env.ConwayURL, user.Email), bytes.NewBuffer(js))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", env.ConwayToken))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 204 {
+		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func main() {
 	ctx := context.TODO()
 	env := &conf.Env{}
@@ -91,6 +178,8 @@ func main() {
 
 	discordSyncUsers := flowcontrol.NewQueue[int64]()
 	go discordSyncUsers.Run(ctx)
+	conwaySyncUsers := flowcontrol.NewQueue[string]()
+	go conwaySyncUsers.Run(ctx)
 	signupEmailUsers := flowcontrol.NewQueue[string]()
 	go signupEmailUsers.Run(ctx)
 
@@ -131,6 +220,7 @@ func main() {
 					discordSyncUsers.Add(user.DiscordUserID)
 				}
 				signupEmailUsers.Add(user.UUID)
+				conwaySyncUsers.Add(user.UUID)
 			}
 			return true
 		}),
@@ -157,6 +247,10 @@ func main() {
 	})
 	go flowcontrol.RunWorker(ctx, signupEmailUsers, func(id string) error {
 		return handleUserSignupEmail(ctx, kc, id)
+	})
+	go flowcontrol.RunWorker(ctx, conwaySyncUsers, func(id string) error {
+		defer time.Sleep(time.Millisecond * 50) // throttling lol
+		return handleConwaySync(ctx, env, kc, id)
 	})
 
 	// Webhook server

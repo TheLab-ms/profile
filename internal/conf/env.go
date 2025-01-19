@@ -54,6 +54,10 @@ type Env struct {
 	EventPsqlUsername string `split_words:"true"`
 	EventPsqlPassword string `split_words:"true"`
 	EventBufferLength int    `split_words:"true" default:"50"`
+
+	// Conway
+	ConwayURL   string `split_words:"true"`
+	ConwayToken string `split_words:"true"`
 }
 
 func (e *Env) MustLoad() {
