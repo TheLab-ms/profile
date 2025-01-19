@@ -118,7 +118,7 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		"paypal_subscription_id":    user.PaypalMetadata.TransactionID,
 		"paypal_price":              user.PaypalMetadata.Price,
 		"paypal_last_payment":       nil,
-		"waiver_signed":             nil,
+		"waiver_signed":             true,
 	}
 	if out["fob_id"] == 0 {
 		out["fob_id"] = nil
@@ -149,9 +149,6 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 	}
 	if user.DiscountType == "family" {
 		out["price_amount"] = 15
-	}
-	if user.WaiverState != "" {
-		out["waiver_signed"] = true
 	}
 
 	if env.ConwayURL == "" || env.ConwayToken == "" {
