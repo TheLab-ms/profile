@@ -107,8 +107,7 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		"confirmed": true,
 		// "leadership":                false, // remember to just set this manually
 		"non_billable":              user.NonBillable,
-		"price_tier":                user.DiscountType,
-		"price_amount":              40, // overridden below
+		"discount_type":             user.DiscountType,
 		"building_access_approver":  user.BuildingAccessApprover,
 		"fob_id":                    user.FobID,
 		"stripe_customer_id":        user.StripeCustomerID,
@@ -119,6 +118,9 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		"paypal_price":              user.PaypalMetadata.Price,
 		"paypal_last_payment":       nil,
 		"waiver_signed":             true,
+	}
+	if out["discount_type"] == "" {
+		out["discount_type"] = nil
 	}
 	if out["fob_id"] == 0 {
 		out["fob_id"] = nil
@@ -143,12 +145,6 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 	}
 	if ext.ActiveMember {
 		out["stripe_subscription_state"] = "active"
-	}
-	if user.DiscountType != "" {
-		out["price_amount"] = 20
-	}
-	if user.DiscountType == "family" {
-		out["price_amount"] = 15
 	}
 
 	if env.ConwayURL == "" || env.ConwayToken == "" {
