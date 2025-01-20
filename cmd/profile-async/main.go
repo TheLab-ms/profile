@@ -102,7 +102,7 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 
 	out := map[string]any{
 		"email":     user.Email,
-		"created":   user.CreationTime,
+		"created":   user.CreationTime / 1000,
 		"name":      fmt.Sprintf("%s %s", user.First, user.Last),
 		"confirmed": true,
 		// "leadership":                false, // remember to just set this manually
