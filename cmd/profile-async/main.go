@@ -108,15 +108,15 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		// "leadership":                false, // remember to just set this manually
 		"non_billable":              user.NonBillable,
 		"discount_type":             user.DiscountType,
-		"building_access_approver":  user.BuildingAccessApprover,
+		"building_access_approver":  9001,
 		"fob_id":                    user.FobID,
 		"stripe_customer_id":        user.StripeCustomerID,
 		"stripe_subscription_id":    user.StripeSubscriptionID,
-		"stripe_subscription_state": nil,
+		"stripe_subscription_state": "unknown",
 		"paypal_subscription_id":    user.PaypalMetadata.TransactionID,
 		"paypal_price":              user.PaypalMetadata.Price,
 		"paypal_last_payment":       nil,
-		"waiver_signed":             true,
+		"waiver":                    1,
 	}
 	if out["discount_type"] == "" {
 		out["discount_type"] = nil
@@ -270,5 +270,5 @@ func main() {
 		return true
 	}))
 
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	log.Fatal(http.ListenAndServe(":8081", mux))
 }
