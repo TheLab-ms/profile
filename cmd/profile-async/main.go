@@ -108,7 +108,6 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		// "leadership":                false, // remember to just set this manually
 		"non_billable":              user.NonBillable,
 		"discount_type":             user.DiscountType,
-		"building_access_approver":  9001,
 		"fob_id":                    user.FobID,
 		"stripe_customer_id":        user.StripeCustomerID,
 		"stripe_subscription_id":    user.StripeSubscriptionID,
@@ -139,7 +138,7 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 	if user.PaypalMetadata.TimeRFC3339.After(time.Unix(0, 0)) {
 		out["paypal_last_payment"] = user.PaypalMetadata.TimeRFC3339.Unix()
 	}
-	if ext.ActiveMember {
+	if ext.ActiveMember && user.StripeSubscriptionID != "" {
 		out["stripe_subscription_state"] = "active"
 	}
 
