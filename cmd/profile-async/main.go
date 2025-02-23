@@ -140,6 +140,15 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		out["stripe_subscription_state"] = "active"
 	}
 
+	if user.BuildingAccessApprover == "" {
+		out["stripe_subscription_state"] = nil
+		out["stripe_customer_id"] = nil
+		out["stripe_subscription_id"] = nil
+		out["paypal_subscription_id"] = nil
+		out["paypal_price"] = nil
+		out["paypal_last_payment"] = nil
+	}
+
 	if env.ConwayURL == "" || env.ConwayToken == "" {
 		log.Printf("Conway URL or Token not set")
 		return nil
