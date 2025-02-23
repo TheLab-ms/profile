@@ -95,6 +95,11 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		return fmt.Errorf("getting user: %w", err)
 	}
 
+	ex, err := kc.ExtendUser(ctx, user, userID)
+	if err != nil {
+		return fmt.Errorf("extending user: %w", err)
+	}
+
 	out := map[string]any{
 		"email":     user.Email,
 		"created":   user.CreationTime / 1000,
@@ -140,9 +145,8 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		out["stripe_subscription_state"] = "active"
 	}
 
-	if user.BuildingAccessApprover == "" {
+	if user.BuildingAccessApprover == "" || !ex.ActiveMember {
 		out["stripe_subscription_state"] = nil
-		out["stripe_customer_id"] = nil
 		out["stripe_subscription_id"] = nil
 		out["paypal_subscription_id"] = nil
 		out["paypal_price"] = nil
