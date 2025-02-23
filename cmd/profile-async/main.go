@@ -95,15 +95,10 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		return fmt.Errorf("getting user: %w", err)
 	}
 
-	ext, err := kc.ExtendUser(ctx, user, userID)
-	if err != nil {
-		return fmt.Errorf("extending user: %w", err)
-	}
-
 	out := map[string]any{
 		"email":     user.Email,
 		"created":   user.CreationTime / 1000,
-		"name":      fmt.Sprintf("%s %s", user.First, user.Last),
+		"name":      user.First,
 		"confirmed": true,
 		// "leadership":                false, // remember to just set this manually
 		"non_billable":              user.NonBillable,
@@ -116,6 +111,9 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 		"paypal_price":              user.PaypalMetadata.Price,
 		"paypal_last_payment":       nil,
 		"waiver":                    1,
+	}
+	if user.Last != "" {
+		out["name"] = fmt.Sprintf("%s %s", user.First, user.Last)
 	}
 	if out["discount_type"] == "" {
 		out["discount_type"] = nil
@@ -138,7 +136,7 @@ func handleConwaySync(ctx context.Context, env *conf.Env, kc *keycloak.Keycloak[
 	if user.PaypalMetadata.TimeRFC3339.After(time.Unix(0, 0)) {
 		out["paypal_last_payment"] = user.PaypalMetadata.TimeRFC3339.Unix()
 	}
-	if ext.ActiveMember && user.StripeSubscriptionID != "" {
+	if user.StripeSubscriptionID != "" {
 		out["stripe_subscription_state"] = "active"
 	}
 
